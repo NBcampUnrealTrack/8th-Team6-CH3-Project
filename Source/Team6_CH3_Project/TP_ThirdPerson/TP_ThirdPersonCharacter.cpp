@@ -57,6 +57,10 @@ ATP_ThirdPersonCharacter::ATP_ThirdPersonCharacter()
 //////////////////////////////////////////////////////////////////////////
 // Input
 
+
+
+
+
 void ATP_ThirdPersonCharacter::NotifyControllerChanged()
 {
 	Super::NotifyControllerChanged();
@@ -67,6 +71,7 @@ void ATP_ThirdPersonCharacter::NotifyControllerChanged()
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
+			Subsystem->AddMappingContext(WeaponMappingContext, 1);
 		}
 	}
 }
@@ -85,6 +90,13 @@ void ATP_ThirdPersonCharacter::SetupPlayerInputComponent(UInputComponent* Player
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::Look);
+
+		// 총기 관련
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnFire);
+
+		// 아이템 상호작용
+		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnInteract);
+
 	}
 	else
 	{
@@ -127,3 +139,54 @@ void ATP_ThirdPersonCharacter::Look(const FInputActionValue& Value)
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
 }
+
+//
+// 총기 발사 관련 추가
+void ATP_ThirdPersonCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
+{
+	if (Weapon)
+	{
+		EquippedWeapon = Weapon;
+		Weapon->AttachToComponent(GetMesh(),
+			FAttachmentTransformRules::SnapToTargetIncludingScale,
+			TEXT("ik_hand_gun"));
+	}
+}
+
+void ATP_ThirdPersonCharacter::OnFire()
+{
+	UE_LOG(LogTemp, Warning, TEXT("onfire run"));
+	if (EquippedWeapon)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("is weapon fire run"));
+		EquippedWeapon->Fire();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("no weapon"));
+	}
+}
+// 총기 발사 관련 추가
+//
+
+//
+// 아이템 상호작용 관련 추가
+void ATP_ThirdPersonCharacter::OnInteract()
+{
+	UE_LOG(LogTemp, Warning, TEXT("interact run"));
+	TArray<AActor*> OverlappingActors;
+	GetOverlappingActors(OverlappingActors, AItemBase::StaticClass());
+
+	UE_LOG(LogTemp, Warning, TEXT("items: %d"), OverlappingActors.Num());
+	for (AActor* Actor : OverlappingActors)
+	{
+		AItemBase* Item = Cast<AItemBase>(Actor);
+		if (Item)
+		{
+			Item->Interact(this);
+			break;
+		}
+	}
+}
+// 아이템 상호작용 관련 추가
+//
