@@ -15,6 +15,9 @@ public:
 	// Sets default values for this actor's properties
 	AItemBase();
 
+	UFUNCTION(BlueprintCallable)
+	virtual void Interact(ACharacter* Character);
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
