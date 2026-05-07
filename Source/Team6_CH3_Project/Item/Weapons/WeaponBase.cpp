@@ -15,6 +15,9 @@ AWeaponBase::AWeaponBase()
 
 	FirePoint = CreateDefaultSubobject<UArrowComponent>(TEXT("FirePoint"));
 	FirePoint->SetupAttachment(Root);
+
+	CanFire = true;
+	RoF = 0.4f;
 }
 
 void AWeaponBase::BeginPlay()

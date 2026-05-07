@@ -6,7 +6,17 @@
 
 void ASandboxWeaponBase::Fire()
 {
+	if (!CanFire) return;
 	SandboxFire();
+
+	CanFire = false;
+	GetWorldTimerManager().SetTimer(
+		TimerFireDelay,
+		this,
+		&ASandboxWeaponBase::HandleFireDelay,
+		RoF,
+		false
+	);
 }
 
 void ASandboxWeaponBase::Reload()
