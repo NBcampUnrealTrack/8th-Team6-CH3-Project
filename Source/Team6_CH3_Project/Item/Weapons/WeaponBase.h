@@ -22,6 +22,12 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual void Fire();
 
+	UFUNCTION(BlueprintCallable)
+	float GetRoF() const
+	{
+		return RoF;
+	}
+
 	virtual void Interact(ACharacter* Character) override;
 protected:
 	virtual void BeginPlay() override;

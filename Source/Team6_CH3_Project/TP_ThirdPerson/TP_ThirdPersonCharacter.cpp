@@ -92,10 +92,13 @@ void ATP_ThirdPersonCharacter::SetupPlayerInputComponent(UInputComponent* Player
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::Look);
 
 		// 총기 관련
-		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnFire);
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ATP_ThirdPersonCharacter::OnFireStart);
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &ATP_ThirdPersonCharacter::OnFireStop);
+		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnReload);
 
 		// 아이템 상호작용
 		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnInteract);
+
 
 	}
 	else
@@ -155,15 +158,38 @@ void ATP_ThirdPersonCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 
 void ATP_ThirdPersonCharacter::OnFire()
 {
-	UE_LOG(LogTemp, Warning, TEXT("onfire run"));
 	if (EquippedWeapon)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("is weapon fire run"));
 		EquippedWeapon->Fire();
+	}
+}
+void ATP_ThirdPersonCharacter::OnFireStart()
+{
+	if (EquippedWeapon)
+	{
+		GetWorldTimerManager().SetTimer(
+			AutoFireTimer,
+			this,
+			&ATP_ThirdPersonCharacter::OnFire,
+			EquippedWeapon->GetRoF(),
+			true
+		);
+		OnFire();
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("no weapon"));
+	}
+}
+void ATP_ThirdPersonCharacter::OnFireStop()
+{
+	GetWorldTimerManager().ClearTimer(AutoFireTimer);
+}
+
+void ATP_ThirdPersonCharacter::OnReload()
+{
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->Reload();
 	}
 }
 // 총기 발사 관련 추가

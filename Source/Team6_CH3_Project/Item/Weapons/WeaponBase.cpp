@@ -18,6 +18,9 @@ AWeaponBase::AWeaponBase()
 
 	CanFire = true;
 	RoF = 0.4f;
+	/*MaxAmmo = 30;
+	CurrentAmmo = 30;
+	AmmoPerFire = 1;*/
 }
 
 void AWeaponBase::BeginPlay()

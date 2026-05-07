@@ -56,6 +56,9 @@ class ATP_ThirdPersonCharacter : public ACharacter
 	UInputAction* FireAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* ReloadAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* WeaponMappingContext;
 	// 총기 발사 관련 추가
 	//
@@ -85,6 +88,17 @@ protected:
 	// 총기 발사 관련 추가
 	UFUNCTION(BlueprintCallable)
 	void OnFire();
+
+	UFUNCTION(BlueprintCallable)
+	void OnFireStart();
+
+	UFUNCTION(BlueprintCallable)
+	void OnFireStop();
+
+	UFUNCTION()
+	void OnReload();
+
+	FTimerHandle AutoFireTimer;
 	// 총기 발사 관련 추가
 	//
 
