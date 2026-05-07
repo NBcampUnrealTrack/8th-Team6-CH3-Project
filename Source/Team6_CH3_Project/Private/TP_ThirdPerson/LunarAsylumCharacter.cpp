@@ -16,6 +16,10 @@ ALunarAsylumCharacter::ALunarAsylumCharacter()
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(CameraArm);
+
+	bIsAiming = false;
+	NormalSensitivity = 1.f;
+	AimSensitivity = 0.5f;
 }
 
 void ALunarAsylumCharacter::BeginPlay()
@@ -80,7 +84,15 @@ void ALunarAsylumCharacter::Look(const FInputActionValue& Value)
 
 	if (Controller != nullptr)
 	{
-		AddControllerYawInput(LookAxisVector.X);
-		AddControllerPitchInput(LookAxisVector.Y);
+		if (bIsAiming)
+		{
+			AddControllerYawInput(LookAxisVector.X * AimSensitivity);
+			AddControllerPitchInput(LookAxisVector.Y * AimSensitivity);
+		}
+		else
+		{
+			AddControllerYawInput(LookAxisVector.X * NormalSensitivity);
+			AddControllerPitchInput(LookAxisVector.Y * NormalSensitivity);
+		}
 	}
 }
