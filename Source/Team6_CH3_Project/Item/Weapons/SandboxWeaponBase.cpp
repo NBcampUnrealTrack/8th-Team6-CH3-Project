@@ -6,17 +6,58 @@
 
 void ASandboxWeaponBase::Fire()
 {
+	if (!CanFire) return;
 	SandboxFire();
+	ApplyRecoil();
+
+	CanFire = false;
+	GetWorldTimerManager().SetTimer(
+		TimerFireDelay,
+		this,
+		&ASandboxWeaponBase::HandleFireDelay,
+		RoF,
+		false
+	);
 }
 
 void ASandboxWeaponBase::Reload()
 {
+	if (bIsReloading) return;
+	if (CurrentAmmo == MaxAmmo) return;
+	
+	PlaySound(ReloadStartSound);
+
+	bIsReloading = true;
+	CanFire = false;
+
+	float SoundDuration = ReloadStartSound ? ReloadStartSound->GetDuration() : ReloadTime;
+
+	GetWorldTimerManager().SetTimer(
+		TimerReloadDelay,
+		this,
+		&ASandboxWeaponBase::FinishReload,
+		SoundDuration,
+		false
+	);
+}
+
+void ASandboxWeaponBase::FinishReload()
+{
 	CurrentAmmo = MaxAmmo;
+	bIsReloading = false;
+	CanFire = true;
+
+	PlaySound(ReloadEndSound);
 }
 
 bool ASandboxWeaponBase::CheckAmmo()
 {
-	return CurrentAmmo >= AmmoPerFire;
+	if (CurrentAmmo < AmmoPerFire)
+	{
+		PlaySound(EmptySound);
+		return false;
+	}
+	return true;
 }
 
 void ASandboxWeaponBase::LinetraceOneShot(FVector Direction)
@@ -42,10 +83,44 @@ void ASandboxWeaponBase::LinetraceOneShot(FVector Direction)
 		End,
 		FColor::Red,
 		false,
-		0.3f,
+		0.2f,
 		0,
 		2.0f
 	);
+}
+
+void ASandboxWeaponBase::LinetraceSpread(FVector Direction, int32 PellectCount, float SpreadAngle)
+{
+	for (int32 i = 0; i < PellectCount; i++)
+	{
+		FVector SpreadDir = FMath::VRandCone(Direction, FMath::DegreesToRadians(SpreadAngle));
+
+		FHitResult HitResult;
+		FVector Start = FirePoint->GetComponentLocation();
+		FVector End = Start + SpreadDir * Range;
+
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(this);
+
+		GetWorld()->LineTraceSingleByChannel(
+			HitResult,
+			Start,
+			End,
+			ECC_Visibility,
+			Params
+		);
+
+		DrawDebugLine(
+			GetWorld(),
+			Start,
+			End,
+			FColor::Red,
+			false,
+			0.2f,
+			0,
+			2.0f
+		);
+	}
 }
 
 void ASandboxWeaponBase::PlaySound(USoundBase* Sound)
@@ -60,6 +135,20 @@ void ASandboxWeaponBase::PlaySound(USoundBase* Sound)
 	}
 }
 
+void ASandboxWeaponBase::ApplyRecoil()
+{
+	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+	if (PC)
+	{
+		PC->AddPitchInput(-RecoilAmount);
+	}
+}
+
+
+
 void ASandboxWeaponBase::UpdateAmmo()
 {
+	CurrentAmmo -= AmmoPerFire;
 }
+
+
