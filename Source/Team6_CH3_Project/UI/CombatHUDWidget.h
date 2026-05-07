@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
-#include "CombatHUDWidget.generated.h" // 이름 변경됨!
+#include "CombatHUDWidget.generated.h" 
 
 
 // 전방 선언
@@ -13,12 +13,12 @@ class UImage;
 class UTexture2D;
 
 UCLASS()
-class TEAM6_CH3_PROJECT_API UCombatHUDWidget : public UUserWidget // UCombatHUDWidget으로 변경됨! (YOURPROJECTNAME은 본인 프로젝트명 유지)
+class TEAM6_CH3_PROJECT_API UCombatHUDWidget : public UUserWidget
 {
 	GENERATED_BODY()
 
 public:
-	// 팀원이 호출할 업데이트 함수
+	//호출할 업데이트 함수
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void UpdateHealth(float CurrentHealth, float MaxHealth);
 
@@ -29,14 +29,14 @@ public:
 	void SwitchWeaponSlot(int32 SlotIndex, UTexture2D* NewWeaponIcon);
 
 protected:
-	// 블루프린트 UI 변수 연결 (UMG의 이름과 똑같아야 함)
+	// 블루프린트 UI 변수 연결
 	UPROPERTY(meta = (BindWidget))
 	UProgressBar* HealthBar;
 
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* AmmoText;
 
-	// 깜빡임 애니메이션 연결 (UMG 애니메이션 이름과 동일해야 함)
+	// 깜빡임 애니메이션 연결
 	UPROPERTY(Transient, meta = (BindWidgetAnim))
 	UWidgetAnimation* Anim_LowHealth;
 
@@ -52,7 +52,7 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	UImage* WeaponSlot_4;
 
-	// --- 🔫 현재 무기 이름 텍스트 ---
+	// 현재 무기 이미지
 	UPROPERTY(meta = (BindWidget))
 	UImage* Img_CurrentWeapon;
 
