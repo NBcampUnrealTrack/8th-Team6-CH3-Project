@@ -35,6 +35,19 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	class UInputAction* LookAction;
 
+	// 조준상태
+	UPROPERTY(EditAnywhere,BlueprintReadWrite)
+	bool bIsAiming;
+
+	// 기본 감도
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float NormalSensitivity;
+
+	// 조준 감도
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	float AimSensitivity;
+
+
 	/** Called for movement input */
 	void Move(const struct FInputActionValue& Value);
 
