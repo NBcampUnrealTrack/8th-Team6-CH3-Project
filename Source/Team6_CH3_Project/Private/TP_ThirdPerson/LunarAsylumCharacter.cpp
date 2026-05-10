@@ -5,33 +5,54 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "EnhancedInputComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "Player\InputConfigData.h"
 #include "EnhancedInputSubsystems.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Player/PlayerStatComponent.h"
 #include "InputActionValue.h"
 
 ALunarAsylumCharacter::ALunarAsylumCharacter()
+	: InputConfigData(nullptr)
+	, DefaultMappingContext(nullptr)
+	, bIsAiming(false)
+	, CurrentAimSensitivity(AimSettings.NormalSensitivity)
+	, CurrentEquipState(EEquipState::Unarmed)
+	, CurrentActionState(EActionState::Idle)
+	, PreviousActionState(CurrentActionState)
+	, CurrentWeapon(nullptr)
+	, PrimaryWeapon(nullptr)
+	, SecondaryWeapon(nullptr)
 {
 	PrimaryActorTick.bCanEverTick = true;
 	CameraArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraArm"));
-	CameraArm->SetupAttachment(RootComponent);
+	CameraArm->SetupAttachment(GetMesh(), FName(TEXT("spine_05")));
 
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(CameraArm);
 
-	bIsAiming = false;
-	NormalSensitivity = 1.f;
-	AimSensitivity = 0.5f;
+	PlayerStatComponent = CreateDefaultSubobject<UPlayerStatComponent>(TEXT("StatComponent"));
 }
 
 void ALunarAsylumCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	CurrentAimSensitivity = AimSettings.NormalSensitivity;
+	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.WalkSpeed;
 }
 
 void ALunarAsylumCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	UpdateAimZoom(DeltaTime);
 
+	// 디버그 출력 테스트 //
+	FString ActionStateString = UEnum::GetValueAsString(CurrentActionState);
+	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, ActionStateString);
+	// 디버그 출력 테스트 //
+	FString EquipStateString = UEnum::GetValueAsString(CurrentEquipState);
+	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Yellow, EquipStateString);
 }
 
 void ALunarAsylumCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -39,12 +60,34 @@ void ALunarAsylumCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
 
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+		if (InputConfigData)
+		{
+			EnhancedInputComponent->BindAction(InputConfigData->JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
+			EnhancedInputComponent->BindAction(InputConfigData->JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
 
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ALunarAsylumCharacter::Move);
+			EnhancedInputComponent->BindAction(InputConfigData->MoveAction, ETriggerEvent::Triggered, this, &ALunarAsylumCharacter::Move);
 
-		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ALunarAsylumCharacter::Look);
+			EnhancedInputComponent->BindAction(InputConfigData->LookAction, ETriggerEvent::Triggered, this, &ALunarAsylumCharacter::Look);
+
+			EnhancedInputComponent->BindAction(InputConfigData->AimAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::StartAim);
+			EnhancedInputComponent->BindAction(InputConfigData->AimAction, ETriggerEvent::Completed, this, &ALunarAsylumCharacter::StopAim);
+
+			EnhancedInputComponent->BindAction(InputConfigData->SprintAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::StartSprint);
+			EnhancedInputComponent->BindAction(InputConfigData->SprintAction, ETriggerEvent::Completed, this, &ALunarAsylumCharacter::StopSprint);
+
+			EnhancedInputComponent->BindAction(InputConfigData->FireAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::StartFire);
+			EnhancedInputComponent->BindAction(InputConfigData->FireAction, ETriggerEvent::Completed, this, &ALunarAsylumCharacter::StopFire);
+
+			EnhancedInputComponent->BindAction(InputConfigData->PrimaryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::PrimaryEquipToggle);
+
+			EnhancedInputComponent->BindAction(InputConfigData->SecondaryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::SecondaryEquipToggle);
+
+			EnhancedInputComponent->BindAction(InputConfigData->ReloadAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::Reload);
+
+			EnhancedInputComponent->BindAction(InputConfigData->InventoryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::InventoryToggle);
+
+			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::Interact);
+		}
 	}
 }
 
@@ -59,6 +102,184 @@ void ALunarAsylumCharacter::NotifyControllerChanged()
 	}
 }
 
+float ALunarAsylumCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
+{
+	float Damage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	ApplyDamage(Damage);
+
+	return Damage;
+}
+
+void ALunarAsylumCharacter::ApplyDamage(float Amount)
+{
+	if (PlayerStatComponent)
+	{
+		PlayerStatComponent->ApplyDamage(Amount);
+	}
+}
+
+void ALunarAsylumCharacter::AimSetting()
+{
+
+	SetActionState(bIsAiming ? EActionState::Aiming : EActionState::Idle);
+
+	GetCharacterMovement()->MaxWalkSpeed = bIsAiming ? MoveSettings.AimSpeed : MoveSettings.WalkSpeed;
+
+	Camera->SetFieldOfView(bIsAiming ? AimSettings.AimFOV : AimSettings.DefaultFOV);
+
+	CurrentAimSensitivity = bIsAiming ? AimSettings.AimSensitivity : AimSettings.NormalSensitivity;
+}
+
+void ALunarAsylumCharacter::UpdateAimZoom(float DeltaTime)
+{
+	float TargetArmLength = bIsAiming ? AimSettings.AimArmLength : AimSettings.DefaultArmLength;
+	FVector TargetOffset = bIsAiming ? AimSettings.AimArmSocketOffset : AimSettings.DefaultArmSocketOffset;
+	float InterpSpeed = bIsAiming ? AimSettings.AimInterpSpeed : AimSettings.DefaultInterpSpeed;
+
+	CameraArm->TargetArmLength = FMath::FInterpTo(CameraArm->TargetArmLength, TargetArmLength, DeltaTime, InterpSpeed);
+	CameraArm->SocketOffset = FMath::VInterpTo(CameraArm->SocketOffset, TargetOffset, DeltaTime, InterpSpeed);
+}
+
+void ALunarAsylumCharacter::StartAim()
+{
+	if (CurrentEquipState == EEquipState::Unarmed) return;
+
+	bIsAiming = true;
+	AimSetting();
+}
+
+void ALunarAsylumCharacter::StopAim()
+{
+	bIsAiming = false;
+	AimSetting();
+}
+
+void ALunarAsylumCharacter::OnFire()
+{
+
+}
+
+void ALunarAsylumCharacter::StartFire()
+{
+	UE_LOG(LogTemp, Log, TEXT("StartFire"));
+	if (CurrentEquipState != EEquipState::Unarmed && CurrentWeapon)
+	{
+		PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Fire);
+		if (APlayerCameraManager* CamManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
+		{
+			CamManager->StartCameraShake(CurrentWeapon->CameraShakeClass, 1.0f);
+		}
+		if (CurrentWeapon->MuzzleEffect)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAttached(CurrentWeapon->MuzzleEffect, CurrentWeapon->Mesh, FName(TEXT("Socket_Muzzle")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+		}
+	}
+}
+
+void ALunarAsylumCharacter::StopFire()
+{
+	SetActionState(EActionState::Idle);
+	UE_LOG(LogTemp, Log, TEXT("StopFire"));
+}
+
+void ALunarAsylumCharacter::StartSprint()
+{
+	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.SprintSpeed;
+	SetActionState(EActionState::Sprinting);
+}
+
+void ALunarAsylumCharacter::StopSprint()
+{
+	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.WalkSpeed;
+	RestorePreviousState();
+}
+
+void ALunarAsylumCharacter::Interact()
+{
+	UE_LOG(LogTemp, Log, TEXT("Interact"));
+}
+
+void ALunarAsylumCharacter::InventoryToggle()
+{
+	UE_LOG(LogTemp, Log, TEXT("InventoryToggle"));
+}
+
+void ALunarAsylumCharacter::Reload()
+{
+	if (CurrentWeapon)
+	{
+		PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Reload);
+	}
+	UE_LOG(LogTemp, Log, TEXT("Reload"));
+}
+
+void ALunarAsylumCharacter::PrimaryEquipToggle()
+{
+	if (PrimaryWeapon)
+	{
+		if (CurrentEquipState == EEquipState::Unarmed)
+		{
+			CurrentWeapon = PrimaryWeapon;
+			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
+
+			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
+			return;
+		}
+		if (CurrentEquipState == EEquipState::Primary)
+		{
+			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("PrimaryWeaponSocket"));
+
+			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Holster);
+		}
+	}
+}
+
+void ALunarAsylumCharacter::SecondaryEquipToggle()
+{
+	if (SecondaryWeapon)
+	{
+		if (CurrentEquipState == EEquipState::Unarmed)
+		{
+			CurrentWeapon = SecondaryWeapon;
+			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
+
+			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
+			return;
+		}
+		if (CurrentEquipState == EEquipState::Secondary)
+		{
+			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("SecondaryWeaponSocket"));
+
+			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Holster);
+		}
+	}
+}
+
+void ALunarAsylumCharacter::SetActionState(EActionState NewState)
+{
+	if (CurrentActionState != NewState)
+	{
+		PreviousActionState = CurrentActionState;
+		CurrentActionState = NewState;
+		OnActionStateChanged.Broadcast(NewState);
+	}
+}
+
+void ALunarAsylumCharacter::RestorePreviousState()
+{
+	CurrentActionState = PreviousActionState;
+	OnActionStateChanged.Broadcast(CurrentActionState);
+}
+
+void ALunarAsylumCharacter::SetEquipState(EEquipState NewState)
+{
+	if (CurrentEquipState != NewState)
+	{
+		CurrentEquipState = NewState;
+		OnEquipStateChanged.Broadcast(CurrentEquipState);
+	}
+}
 
 void ALunarAsylumCharacter::Move(const FInputActionValue& Value)
 {
@@ -84,15 +305,7 @@ void ALunarAsylumCharacter::Look(const FInputActionValue& Value)
 
 	if (Controller != nullptr)
 	{
-		if (bIsAiming)
-		{
-			AddControllerYawInput(LookAxisVector.X * AimSensitivity);
-			AddControllerPitchInput(LookAxisVector.Y * AimSensitivity);
-		}
-		else
-		{
-			AddControllerYawInput(LookAxisVector.X * NormalSensitivity);
-			AddControllerPitchInput(LookAxisVector.Y * NormalSensitivity);
-		}
+		AddControllerYawInput(LookAxisVector.X * CurrentAimSensitivity);
+		AddControllerPitchInput(LookAxisVector.Y * CurrentAimSensitivity);
 	}
 }
