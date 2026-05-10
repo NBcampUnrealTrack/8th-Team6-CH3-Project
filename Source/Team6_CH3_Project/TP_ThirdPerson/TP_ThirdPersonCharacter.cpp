@@ -52,6 +52,9 @@ ATP_ThirdPersonCharacter::ATP_ThirdPersonCharacter()
 
 	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
 	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+
+	// Inventory Component
+	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -72,6 +75,7 @@ void ATP_ThirdPersonCharacter::NotifyControllerChanged()
 		{
 			Subsystem->AddMappingContext(DefaultMappingContext, 0);
 			Subsystem->AddMappingContext(WeaponMappingContext, 1);
+			Subsystem->AddMappingContext(InventoryMappingContext, 2);
 		}
 	}
 }
@@ -91,12 +95,17 @@ void ATP_ThirdPersonCharacter::SetupPlayerInputComponent(UInputComponent* Player
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::Look);
 
-		// 총기 관련
-		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnFire);
+		// Weapon
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Started, this, &ATP_ThirdPersonCharacter::OnFireStart);
+		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &ATP_ThirdPersonCharacter::OnFireStop);
+		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnReload);
 
-		// 아이템 상호작용
+		// Interact
 		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnInteract);
 
+		// Inventory
+		EnhancedInputComponent->BindAction(InventoryAction, ETriggerEvent::Started, this, &ATP_ThirdPersonCharacter::InInventoryToggle);
+		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnUseItem);
 	}
 	else
 	{
@@ -141,7 +150,7 @@ void ATP_ThirdPersonCharacter::Look(const FInputActionValue& Value)
 }
 
 //
-// 총기 발사 관련 추가
+// Weapon
 void ATP_ThirdPersonCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 {
 	if (Weapon)
@@ -155,38 +164,148 @@ void ATP_ThirdPersonCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 
 void ATP_ThirdPersonCharacter::OnFire()
 {
-	UE_LOG(LogTemp, Warning, TEXT("onfire run"));
 	if (EquippedWeapon)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("is weapon fire run"));
 		EquippedWeapon->Fire();
+	}
+}
+void ATP_ThirdPersonCharacter::OnFireStart()
+{
+	if (EquippedWeapon)
+	{
+		GetWorldTimerManager().SetTimer(
+			AutoFireTimer,
+			this,
+			&ATP_ThirdPersonCharacter::OnFire,
+			EquippedWeapon->GetRoF(),
+			true
+		);
+		OnFire();
 	}
 	else
 	{
-		UE_LOG(LogTemp, Warning, TEXT("no weapon"));
 	}
 }
-// 총기 발사 관련 추가
+void ATP_ThirdPersonCharacter::OnFireStop()
+{
+	GetWorldTimerManager().ClearTimer(AutoFireTimer);
+}
+
+void ATP_ThirdPersonCharacter::OnReload()
+{
+	if (EquippedWeapon)
+	{
+		EquippedWeapon->Reload();
+	}
+}
+// Weapon
 //
 
 //
-// 아이템 상호작용 관련 추가
+// Interact : F
 void ATP_ThirdPersonCharacter::OnInteract()
 {
-	UE_LOG(LogTemp, Warning, TEXT("interact run"));
 	TArray<AActor*> OverlappingActors;
 	GetOverlappingActors(OverlappingActors, AItemBase::StaticClass());
 
-	UE_LOG(LogTemp, Warning, TEXT("items: %d"), OverlappingActors.Num());
 	for (AActor* Actor : OverlappingActors)
 	{
 		AItemBase* Item = Cast<AItemBase>(Actor);
 		if (Item)
 		{
-			Item->Interact(this);
+			if (InventoryComponent->AddItem(Item->GetClass(), Item->Quantity))
+			{
+				Item->Destroy();
+			}
 			break;
 		}
 	}
 }
-// 아이템 상호작용 관련 추가
+// Interact : F
+//
+
+//
+// Inventory : I
+void ATP_ThirdPersonCharacter::InInventoryToggle()
+{
+	if (!bCanToggleInventory) return;
+
+	if (!InventoryWidget && InventoryWidgetClass)
+	{
+		APlayerController* PC = Cast<APlayerController>(GetController());
+		if (PC)
+		{
+			InventoryWidget = CreateWidget<UUserWidget>(PC, InventoryWidgetClass);
+		}
+	}
+
+	if (InventoryWidget)
+	{
+		APlayerController* PC = Cast<APlayerController>(GetController());
+		if (InventoryWidget->IsInViewport())
+		{
+			InventoryWidget->RemoveFromParent();
+
+			if (PC)
+			{
+				PC->bShowMouseCursor = false;
+				PC->SetInputMode(FInputModeGameOnly());
+			}
+		}
+		else
+		{
+			InventoryWidget->AddToViewport();
+			if (PC)
+			{
+				PC->bShowMouseCursor = true;
+				FInputModeGameAndUI InputMode;
+				InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+				InputMode.SetHideCursorDuringCapture(false);
+				PC->SetInputMode(InputMode);
+			}
+		}
+
+		bCanToggleInventory = false;
+		GetWorldTimerManager().SetTimer(
+			InventoryToggleTimer,
+			[this]() {
+				bCanToggleInventory = true;
+			},
+			0.5f,
+			false
+		);
+	}
+}
+// Inventory : I
+//
+
+//
+// UseItem : E
+void ATP_ThirdPersonCharacter::OnUseItem()
+{
+	if (!InventoryComponent) return;
+
+	FInventorySlot& Slot = InventoryComponent->Slots[SelectedSlotIndex];
+	if (Slot.bIsEmpty || !Slot.ItemClass) return;
+
+	AItemBase* CDO = Cast<AItemBase>(Slot.ItemClass->GetDefaultObject());
+	if (!CDO) return;
+
+	if (CDO->ItemType == EItemType::Weapon)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		ASandboxWeaponBase* Weapon = GetWorld()->SpawnActor<ASandboxWeaponBase>(
+		Slot.ItemClass,
+		GetActorLocation(),
+		GetActorRotation(),
+		SpawnParams);
+		if (Weapon)
+		{
+			Weapon->SetActorEnableCollision(false);
+			EquipWeapon(Weapon);
+		}
+	}
+}
+// UseItem : E
 //

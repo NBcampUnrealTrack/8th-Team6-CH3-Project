@@ -1,10 +1,13 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 //
-// 총기 관련 include
+// Weapon include
 #include "../Item/Weapons/SandboxWeaponBase.h"
-// 총기 관련 include
+// Weapon include
+
+// Inventory include
+#include "../Inventory/InventoryComponent.h"
+#include "Blueprint/UserWidget.h"
+// Inventory include
 //
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
@@ -50,23 +53,36 @@ class ATP_ThirdPersonCharacter : public ACharacter
 	UInputAction* LookAction;
 
 	//
-	// 총기 발사 관련 추가
-
+	// Weapon Input
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* FireAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputMappingContext* WeaponMappingContext;
-	// 총기 발사 관련 추가
-	//
-
-	//
-	// 아이템 상호작용 관련 추가
+	UInputAction* ReloadAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* InteractAction;
+	UInputMappingContext* WeaponMappingContext;
+	// Weapon Input
+	//
 
-	// 아이템 상호작용 관련 추가
+	//
+	// Interact Input
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* InteractAction;
+	// Interact Input
+	//
+
+	//
+	// Inventory Input
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* InventoryAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* UseItemAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputMappingContext* InventoryMappingContext;
+	// Inventory Input
 	//
 
 public:
@@ -82,19 +98,41 @@ protected:
 	void Look(const FInputActionValue& Value);
 			
 	//
-	// 총기 발사 관련 추가
+	// Weapon Functions
 	UFUNCTION(BlueprintCallable)
 	void OnFire();
-	// 총기 발사 관련 추가
-	//
 
-	//
-	// 아이템 상호작용 관련 추가
+	UFUNCTION(BlueprintCallable)
+	void OnFireStart();
+
+	UFUNCTION(BlueprintCallable)
+	void OnFireStop();
 
 	UFUNCTION()
-	void OnInteract();
+	void OnReload();
 
-	// 아이템 상호작용 관련 추가
+	FTimerHandle AutoFireTimer;
+	// Weapon Functions
+	//
+
+	//
+	// Interact Functions
+	UFUNCTION()
+	void OnInteract();
+	// Interact Functions
+	//
+
+	//
+	// Inventory Functions
+	UFUNCTION()
+	void InInventoryToggle();
+
+	UFUNCTION()
+	void OnUseItem();
+
+	bool bCanToggleInventory = true;
+	FTimerHandle InventoryToggleTimer;
+	// Inventory Functions
 	//
 protected:
 
@@ -110,13 +148,33 @@ public:
 
 
 	//
-	// 총기 발사 관련 추가
+	// Weapon
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	TObjectPtr<ASandboxWeaponBase> EquippedWeapon;
 
 	UFUNCTION(BlueprintCallable)
 	void EquipWeapon(ASandboxWeaponBase* Weapon);
-	// 총기 발사 관련 추가
+	// Weapon
+	//
+
+	//
+	// Inventory
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Inventory")
+	UInventoryComponent* InventoryComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory")
+	TSubclassOf<UUserWidget> InventoryWidgetClass;
+
+	UPROPERTY()
+	UUserWidget* InventoryWidget;
+	// Inventory
+	//
+
+	//
+	// Selected Slot
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Inventory")
+	int32 SelectedSlotIndex = 0;
+	// Selected Slot
 	//
 };
 

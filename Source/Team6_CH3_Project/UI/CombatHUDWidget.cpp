@@ -1,4 +1,4 @@
-ï»¿#include "CombatHUDWidget.h" 
+#include "CombatHUDWidget.h" // Çì´õ ÆÄÀÏ ÀÌ¸§ º¯°æµÊ!
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 #include "Animation/WidgetAnimation.h" 
@@ -11,16 +11,16 @@ void UCombatHUDWidget::UpdateHealth(float CurrentHealth, float MaxHealth)
 		float HealthPercentage = (MaxHealth > 0.f) ? (CurrentHealth / MaxHealth) : 0.f;
 		HealthBar->SetPercent(HealthPercentage);
 
-		// ì²´ë ¥ì´ 30% ì´í•˜ì¼ ë•Œ ì• ë‹ˆë©”ì´ì…˜ ì¬ìƒ
+		// Ã¼·ÂÀÌ 30% ÀÌÇÏÀÏ ¶§ ¾Ö´Ï¸ŞÀÌ¼Ç Àç»ı
 		if (HealthPercentage <= 0.3f)
 		{
 			if (Anim_LowHealth != nullptr && !bIsLowHealthPlaying)
 			{
-				PlayAnimation(Anim_LowHealth, 0.0f, 0); 
+				PlayAnimation(Anim_LowHealth, 0.0f, 0); // 0 = ¹«ÇÑ ¹İº¹
 				bIsLowHealthPlaying = true;
 			}
 		}
-		// ì²´ë ¥ì´ 30% ì´ˆê³¼ì¼ ë•Œ ì• ë‹ˆë©”ì´ì…˜ ì •ì§€
+		// Ã¼·ÂÀÌ 30% ÃÊ°úÀÏ ¶§ ¾Ö´Ï¸ŞÀÌ¼Ç Á¤Áö
 		else
 		{
 			if (Anim_LowHealth != nullptr && bIsLowHealthPlaying)
@@ -43,13 +43,14 @@ void UCombatHUDWidget::UpdateAmmo(int32 CurrentAmmo, int32 MaxAmmo)
 
 void UCombatHUDWidget::SwitchWeaponSlot(int32 SlotIndex, UTexture2D* NewWeaponIcon)
 {
-	// 1. 4ê°œ ìŠ¬ë¡¯ íˆ¬ëª…ë„ ì¡°ì ˆ
+	// 1. 4°³ ½½·Ô Åõ¸íµµ Á¶Àı
 	if (WeaponSlot_1) WeaponSlot_1->SetRenderOpacity(SlotIndex == 1 ? 1.0f : 0.3f);
 	if (WeaponSlot_2) WeaponSlot_2->SetRenderOpacity(SlotIndex == 2 ? 1.0f : 0.3f);
 	if (WeaponSlot_3) WeaponSlot_3->SetRenderOpacity(SlotIndex == 3 ? 1.0f : 0.3f);
 	if (WeaponSlot_4) WeaponSlot_4->SetRenderOpacity(SlotIndex == 4 ? 1.0f : 0.3f);
 
-	// 2. í˜„ì¬ ë¬´ê¸° ì´ë¯¸ì§€ ì—…ë°ì´íŠ¸
+	// 2. ÇöÀç ¹«±â ÀÌ¹ÌÁö ¾÷µ¥ÀÌÆ®
+	// Img_CurrentWeapon À§Á¬ÀÌ ÀÖ°í, »õ·Î ³ÖÀ» ÀÌ¹ÌÁö(NewWeaponIcon)°¡ Àü´ŞµÇ¾ú´Ù¸é ±³Ã¼!
 	if (Img_CurrentWeapon && NewWeaponIcon)
 	{
 		Img_CurrentWeapon->SetBrushFromTexture(NewWeaponIcon);
