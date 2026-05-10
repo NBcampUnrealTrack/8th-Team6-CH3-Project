@@ -108,10 +108,8 @@ enum class EActionState : uint8
 	Idle        UMETA(DisplayName = "Idle"),        // 대기
 	Equip       UMETA(DisplayName = "Equip"),       // 장착
 	Holster     UMETA(DisplayName = "Holster"),     // 해제
-	Aiming      UMETA(DisplayName = "Aiming"),      // 조준
 	Reloading   UMETA(DisplayName = "Reloading"),   // 재장전
 	Firing      UMETA(DisplayName = "Firing"),      // 발사
-	Sprinting   UMETA(DisplayName = "Sprinting"),   // 질주
 	HitReaction UMETA(DisplayName = "HitReaction"), // 피격
 	Dead        UMETA(DisplayName = "Dead")			// 사망
 };

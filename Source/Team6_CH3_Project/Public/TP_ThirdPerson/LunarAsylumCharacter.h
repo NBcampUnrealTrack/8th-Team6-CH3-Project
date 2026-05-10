@@ -10,6 +10,7 @@
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEquipStateChanged, EEquipState, EquipState);
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAimingChanged, bool, bIsAiming);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FActionStateChanged, EActionState, ActionState);
 
@@ -36,7 +37,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
 	class UInputConfigData* InputConfigData;
 
-	// 조준상태
+	// 조준
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	bool bIsAiming;
 
@@ -44,6 +45,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Aim")
 	FAimSetting AimSettings;
 	float CurrentAimSensitivity;
+
+	// 달리기
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	bool bIsSprint;
 
 	// 이동 관련 설정 값들
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Movement")
@@ -53,11 +58,8 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	EEquipState CurrentEquipState;
 
-	// 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	EActionState CurrentActionState;
-
-	EActionState PreviousActionState;
 
 	// 주무기
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -74,6 +76,9 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FActionStateChanged OnActionStateChanged;
 
+	UPROPERTY(BlueprintAssignable)
+	FAimingChanged OnAimingChanged;
+
 	// 이동
 	void Move(const struct FInputActionValue& Value);
 
@@ -81,7 +86,6 @@ public:
 	void Look(const struct FInputActionValue& Value);
 
 	void SetActionState(EActionState NewState);
-	void RestorePreviousState();
 
 	void SetEquipState(EEquipState NewState);
 
@@ -129,4 +133,12 @@ protected:
 
 	// 보조무기 장착/해제
 	void SecondaryEquipToggle();
+
+	// 피격
+	void HitReaction();
+
+	// 사망
+	UFUNCTION()
+	void OnDeath();
+
 };
