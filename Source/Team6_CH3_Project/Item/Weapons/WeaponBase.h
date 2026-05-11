@@ -29,6 +29,7 @@ public:
 	}
 
 	virtual void Interact(ACharacter* Character) override;
+	virtual void Use(ACharacter* Character) override;
 protected:
 	virtual void BeginPlay() override;
 
