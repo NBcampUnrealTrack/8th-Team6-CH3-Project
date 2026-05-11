@@ -291,21 +291,7 @@ void ATP_ThirdPersonCharacter::OnUseItem()
 	AItemBase* CDO = Cast<AItemBase>(Slot.ItemClass->GetDefaultObject());
 	if (!CDO) return;
 
-	if (CDO->ItemType == EItemType::Weapon)
-	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-		ASandboxWeaponBase* Weapon = GetWorld()->SpawnActor<ASandboxWeaponBase>(
-		Slot.ItemClass,
-		GetActorLocation(),
-		GetActorRotation(),
-		SpawnParams);
-		if (Weapon)
-		{
-			Weapon->SetActorEnableCollision(false);
-			EquipWeapon(Weapon);
-		}
-	}
+	CDO->Use(this);
 }
 // UseItem : E
 //
