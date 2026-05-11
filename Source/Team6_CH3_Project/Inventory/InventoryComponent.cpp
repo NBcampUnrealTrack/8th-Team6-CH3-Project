@@ -28,6 +28,7 @@ bool UInventoryComponent::AddItem(TSubclassOf<AItemBase> ItemClass, int32 Quanti
 			if (Slots[ExistingSlot].Quantity + Quantity <= DefaultItem->MaxStackSize)
 			{
 				Slots[ExistingSlot].Quantity += Quantity;
+				OnInventoryUpdated.Broadcast();
 				return true;
 			}
 		}

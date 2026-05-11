@@ -23,6 +23,12 @@ class TEAM6_CH3_PROJECT_API AItemBase : public AActor
 public:	
 	AItemBase();
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UTexture2D* ItemIcon;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	UTexture2D* HoverIcon;
+
 	UFUNCTION(BlueprintCallable)
 	virtual void Interact(ACharacter* Character);
 
@@ -34,9 +40,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	EItemType ItemType;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
-	UTexture2D* ItemIcon;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Stack")
 	bool bIsStackable = false;
