@@ -4,7 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Player\WeaponTestActor.h"
+#include "ProjectTypes.h"
 #include "LunarAsylumCharacter.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEquipStateChanged, EEquipState, EquipState);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAimingChanged, bool, bIsAiming);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FActionStateChanged, EActionState, ActionState);
 
 UCLASS()
 class TEAM6_CH3_PROJECT_API ALunarAsylumCharacter : public ACharacter
@@ -23,43 +31,114 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
 	class UInputMappingContext* DefaultMappingContext;
 
-	// Jump Input Action
-	UPROPERTY(EditAnywhere, Category = "Input")
-	class UInputAction* JumpAction;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Stat)
+	class UPlayerStatComponent* PlayerStatComponent;
 
-	// Move Input Action
-	UPROPERTY(EditAnywhere, Category = "Input")
-	class UInputAction* MoveAction;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
+	class UInputConfigData* InputConfigData;
 
-	// Look Input Action
-	UPROPERTY(EditAnywhere, Category = "Input")
-	class UInputAction* LookAction;
-
-	// 조준상태
-	UPROPERTY(EditAnywhere,BlueprintReadWrite)
+	// 조준
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	bool bIsAiming;
 
-	// 기본 감도
+	// 조준 관련 설정 값들
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Aim")
+	FAimSetting AimSettings;
+	float CurrentAimSensitivity;
+
+	// 달리기
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	bool bIsSprint;
+
+	// 이동 관련 설정 값들
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Movement")
+	FMovementSetting MoveSettings;
+
+	// 맨손/주무기/보조무기
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	EEquipState CurrentEquipState;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	EActionState CurrentActionState;
+
+	// 주무기
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float NormalSensitivity;
-
-	// 조준 감도
+	AWeaponTestActor* PrimaryWeapon;
+	// 보조무기
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AimSensitivity;
+	AWeaponTestActor* SecondaryWeapon;
+	// 현재 착용중인 무기를 가리키는 포인터
+	UPROPERTY(BlueprintReadOnly)
+	AWeaponTestActor* CurrentWeapon;
 
+	UPROPERTY(BlueprintAssignable)
+	FEquipStateChanged OnEquipStateChanged;
+	UPROPERTY(BlueprintAssignable)
+	FActionStateChanged OnActionStateChanged;
 
-	/** Called for movement input */
+	UPROPERTY(BlueprintAssignable)
+	FAimingChanged OnAimingChanged;
+
+	// 이동
 	void Move(const struct FInputActionValue& Value);
 
-	/** Called for looking input */
+	// 마우스 입력 기반 시점 회전
 	void Look(const struct FInputActionValue& Value);
+
+	void SetActionState(EActionState NewState);
+
+	void SetEquipState(EEquipState NewState);
 
 protected:
 	virtual void BeginPlay() override;
-
-public:
 	virtual void Tick(float DeltaTime) override;
-
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	virtual void NotifyControllerChanged() override;
+	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
+
+	UFUNCTION(BlueprintCallable)
+	void ApplyDamage(float Amount);
+
+	// 조준
+	UFUNCTION(BlueprintCallable)
+	void StartAim();
+	UFUNCTION(BlueprintCallable)
+	void StopAim();
+	void AimSetting();
+	void UpdateAimZoom(float DeltaTime);
+
+	// 공격
+	UFUNCTION(BlueprintCallable)
+	void OnFire();
+	UFUNCTION(BlueprintCallable)
+	void StartFire();
+	UFUNCTION(BlueprintCallable)
+	void StopFire();
+
+	// 달리기
+	void StartSprint();
+	void StopSprint();
+
+	// 상호작용 
+	void Interact();
+
+	// 인벤토리
+	void InventoryToggle();
+
+	// 재장전
+	void Reload();
+
+	// 주무기 장착/해제
+	void PrimaryEquipToggle();
+
+	// 보조무기 장착/해제
+	void SecondaryEquipToggle();
+
+	// 피격
+	void HitReaction();
+
+	// 사망
+	UFUNCTION()
+	void OnDeath();
+
 };
