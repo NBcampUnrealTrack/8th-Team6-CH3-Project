@@ -16,10 +16,10 @@ ALunarAsylumCharacter::ALunarAsylumCharacter()
 	: InputConfigData(nullptr)
 	, DefaultMappingContext(nullptr)
 	, bIsAiming(false)
+	, bIsSprint(false)
 	, CurrentAimSensitivity(AimSettings.NormalSensitivity)
 	, CurrentEquipState(EEquipState::Unarmed)
 	, CurrentActionState(EActionState::Idle)
-	, PreviousActionState(CurrentActionState)
 	, CurrentWeapon(nullptr)
 	, PrimaryWeapon(nullptr)
 	, SecondaryWeapon(nullptr)
@@ -40,6 +40,8 @@ void ALunarAsylumCharacter::BeginPlay()
 
 	CurrentAimSensitivity = AimSettings.NormalSensitivity;
 	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.WalkSpeed;
+
+	PlayerStatComponent->OnDeath.AddDynamic(this, &ALunarAsylumCharacter::OnDeath);
 }
 
 void ALunarAsylumCharacter::Tick(float DeltaTime)
@@ -116,14 +118,12 @@ void ALunarAsylumCharacter::ApplyDamage(float Amount)
 	if (PlayerStatComponent)
 	{
 		PlayerStatComponent->ApplyDamage(Amount);
+		HitReaction();
 	}
 }
 
 void ALunarAsylumCharacter::AimSetting()
 {
-
-	SetActionState(bIsAiming ? EActionState::Aiming : EActionState::Idle);
-
 	GetCharacterMovement()->MaxWalkSpeed = bIsAiming ? MoveSettings.AimSpeed : MoveSettings.WalkSpeed;
 
 	Camera->SetFieldOfView(bIsAiming ? AimSettings.AimFOV : AimSettings.DefaultFOV);
@@ -147,12 +147,14 @@ void ALunarAsylumCharacter::StartAim()
 
 	bIsAiming = true;
 	AimSetting();
+	OnAimingChanged.Broadcast(bIsAiming);
 }
 
 void ALunarAsylumCharacter::StopAim()
 {
 	bIsAiming = false;
 	AimSetting();
+	OnAimingChanged.Broadcast(bIsAiming);
 }
 
 void ALunarAsylumCharacter::OnFire()
@@ -162,8 +164,7 @@ void ALunarAsylumCharacter::OnFire()
 
 void ALunarAsylumCharacter::StartFire()
 {
-	UE_LOG(LogTemp, Log, TEXT("StartFire"));
-	if (CurrentEquipState != EEquipState::Unarmed && CurrentWeapon)
+	if (CurrentEquipState != EEquipState::Unarmed && CurrentActionState == EActionState::Idle && CurrentWeapon)
 	{
 		PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Fire);
 		if (APlayerCameraManager* CamManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
@@ -179,20 +180,19 @@ void ALunarAsylumCharacter::StartFire()
 
 void ALunarAsylumCharacter::StopFire()
 {
-	SetActionState(EActionState::Idle);
-	UE_LOG(LogTemp, Log, TEXT("StopFire"));
+
 }
 
 void ALunarAsylumCharacter::StartSprint()
 {
+	bIsSprint = true;
 	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.SprintSpeed;
-	SetActionState(EActionState::Sprinting);
 }
 
 void ALunarAsylumCharacter::StopSprint()
 {
+	bIsSprint = false;
 	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.WalkSpeed;
-	RestorePreviousState();
 }
 
 void ALunarAsylumCharacter::Interact()
@@ -207,18 +207,17 @@ void ALunarAsylumCharacter::InventoryToggle()
 
 void ALunarAsylumCharacter::Reload()
 {
-	if (CurrentWeapon)
+	if (CurrentWeapon && CurrentActionState == EActionState::Idle)
 	{
 		PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Reload);
 	}
-	UE_LOG(LogTemp, Log, TEXT("Reload"));
 }
 
 void ALunarAsylumCharacter::PrimaryEquipToggle()
 {
 	if (PrimaryWeapon)
 	{
-		if (CurrentEquipState == EEquipState::Unarmed)
+		if (CurrentEquipState == EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
 		{
 			CurrentWeapon = PrimaryWeapon;
 			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
@@ -226,7 +225,7 @@ void ALunarAsylumCharacter::PrimaryEquipToggle()
 			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
 			return;
 		}
-		if (CurrentEquipState == EEquipState::Primary)
+		if (CurrentEquipState == EEquipState::Primary && CurrentActionState == EActionState::Idle)
 		{
 			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("PrimaryWeaponSocket"));
 
@@ -239,7 +238,7 @@ void ALunarAsylumCharacter::SecondaryEquipToggle()
 {
 	if (SecondaryWeapon)
 	{
-		if (CurrentEquipState == EEquipState::Unarmed)
+		if (CurrentEquipState == EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
 		{
 			CurrentWeapon = SecondaryWeapon;
 			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
@@ -247,7 +246,7 @@ void ALunarAsylumCharacter::SecondaryEquipToggle()
 			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
 			return;
 		}
-		if (CurrentEquipState == EEquipState::Secondary)
+		if (CurrentEquipState == EEquipState::Secondary && CurrentActionState == EActionState::Idle)
 		{
 			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("SecondaryWeaponSocket"));
 
@@ -256,20 +255,24 @@ void ALunarAsylumCharacter::SecondaryEquipToggle()
 	}
 }
 
+void ALunarAsylumCharacter::HitReaction()
+{
+	//if (CurrentActionState == EActionState::Dead) return;
+	StopAnimMontage();
+}
+
+void ALunarAsylumCharacter::OnDeath()
+{
+
+}
+
 void ALunarAsylumCharacter::SetActionState(EActionState NewState)
 {
 	if (CurrentActionState != NewState)
 	{
-		PreviousActionState = CurrentActionState;
 		CurrentActionState = NewState;
 		OnActionStateChanged.Broadcast(NewState);
 	}
-}
-
-void ALunarAsylumCharacter::RestorePreviousState()
-{
-	CurrentActionState = PreviousActionState;
-	OnActionStateChanged.Broadcast(CurrentActionState);
 }
 
 void ALunarAsylumCharacter::SetEquipState(EEquipState NewState)

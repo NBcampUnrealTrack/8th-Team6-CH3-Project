@@ -26,6 +26,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual void Interact(ACharacter* Character);
 
+	UFUNCTION(BlueprintCallable)
+	virtual void Use(ACharacter* Character);
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	FName ItemName;
 

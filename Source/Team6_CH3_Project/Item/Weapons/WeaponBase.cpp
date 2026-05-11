@@ -54,3 +54,29 @@ void AWeaponBase::Interact(ACharacter* Character)
 		}
 	}
 }
+
+void AWeaponBase::Use(ACharacter* Character)
+{
+	if (!Character) return;
+
+	ATP_ThirdPersonCharacter* Player = Cast<ATP_ThirdPersonCharacter>(Character);
+	if (!Player) return;
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = Character;
+	AWeaponBase* Weapon = Character->GetWorld()->SpawnActor<AWeaponBase>(
+		GetClass(),
+		Character->GetActorLocation(),
+		Character->GetActorRotation(),
+		SpawnParams);
+
+	if (Weapon)
+	{
+		Weapon->SetActorEnableCollision(false);
+		ASandboxWeaponBase* SandboxWeapon = Cast<ASandboxWeaponBase>(Weapon);
+		if (SandboxWeapon)
+		{
+			Player->EquipWeapon(SandboxWeapon);
+		}
+	}
+}

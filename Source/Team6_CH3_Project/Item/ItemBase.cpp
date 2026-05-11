@@ -24,3 +24,8 @@ void AItemBase::Interact(ACharacter* Character)
 {
 
 }
+
+void AItemBase::Use(ACharacter* Character)
+{
+
+}
