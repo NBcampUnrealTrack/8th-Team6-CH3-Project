@@ -153,13 +153,18 @@ void ATP_ThirdPersonCharacter::Look(const FInputActionValue& Value)
 // Weapon
 void ATP_ThirdPersonCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 {
-	if (Weapon)
+	if (!Weapon) return;
+
+	if (EquippedWeapon)
 	{
-		EquippedWeapon = Weapon;
-		Weapon->AttachToComponent(GetMesh(),
-			FAttachmentTransformRules::SnapToTargetIncludingScale,
-			TEXT("ik_hand_gun"));
+		InventoryComponent->AddItem(EquippedWeapon->GetClass(), 1);
+		EquippedWeapon->Destroy();
+		EquippedWeapon = nullptr;
 	}
+	EquippedWeapon = Weapon;
+	Weapon->AttachToComponent(GetMesh(),
+		FAttachmentTransformRules::SnapToTargetIncludingScale,
+		TEXT("ik_hand_gun"));
 }
 
 void ATP_ThirdPersonCharacter::OnFire()
@@ -285,6 +290,8 @@ void ATP_ThirdPersonCharacter::OnUseItem()
 {
 	if (!InventoryComponent) return;
 
+	if (SelectedSlotIndex < 0 || SelectedSlotIndex >= InventoryComponent->Slots.Num()) return;
+
 	FInventorySlot& Slot = InventoryComponent->Slots[SelectedSlotIndex];
 	if (Slot.bIsEmpty || !Slot.ItemClass) return;
 
@@ -292,6 +299,8 @@ void ATP_ThirdPersonCharacter::OnUseItem()
 	if (!CDO) return;
 
 	CDO->Use(this);
+
+	InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
 }
 // UseItem : E
 //
