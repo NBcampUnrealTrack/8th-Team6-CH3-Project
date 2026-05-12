@@ -66,6 +66,16 @@ class ATP_ThirdPersonCharacter : public ACharacter
 	//
 
 	//
+	// Weapon Switch
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SwitchMainWeaponAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SwitchSubWeaponAction;
+	// Weapon Switch
+	// 
+
+	//
 	// Interact Input
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* InteractAction;
@@ -74,8 +84,8 @@ class ATP_ThirdPersonCharacter : public ACharacter
 
 	//
 	// Inventory Input
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* InventoryAction;
+	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	//UInputAction* InventoryAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* UseItemAction;
@@ -116,6 +126,18 @@ protected:
 	//
 
 	//
+	// Weapon Switch Functions
+	
+	UFUNCTION(BlueprintCallable)
+	void SwitchToMainWeapon();
+
+	UFUNCTION(BlueprintCallable)
+	void SwitchToSubWeapon();
+
+	// Weapon Switch Functions
+	//
+
+	//
 	// Interact Functions
 	UFUNCTION()
 	void OnInteract();
@@ -124,14 +146,14 @@ protected:
 
 	//
 	// Inventory Functions
-	UFUNCTION()
-	void InInventoryToggle();
+	//UFUNCTION()
+	//void InInventoryToggle();
 
 	UFUNCTION(BlueprintCallable)
 	void OnUseItem();
 
-	bool bCanToggleInventory = true;
-	FTimerHandle InventoryToggleTimer;
+	//bool bCanToggleInventory = true;
+	//FTimerHandle InventoryToggleTimer;
 	// Inventory Functions
 	//
 protected:
@@ -151,6 +173,12 @@ public:
 	// Weapon
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	TObjectPtr<ASandboxWeaponBase> EquippedWeapon;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	TObjectPtr<ASandboxWeaponBase> MainWeaponSlot;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	TObjectPtr<ASandboxWeaponBase> SubWeaponSlot;
 
 	UFUNCTION(BlueprintCallable)
 	void EquipWeapon(ASandboxWeaponBase* Weapon);

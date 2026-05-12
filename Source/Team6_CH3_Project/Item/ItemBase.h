@@ -15,6 +15,15 @@ enum class EItemType : uint8
 	Ammo		UMETA(DisplayName = "Ammo")
 };
 
+UENUM(BlueprintType)
+enum class EItemSlotType : uint8
+{
+	MainWeapon		UMETA(DisplayName = "Main Weapon"),
+	SubWeapon		UMETA(DisplayName = "Sub Weapon"),
+	Potion			UMETA(DisplayName = "Consumable"),
+	Inventory		UMETA(DisplayName = "Inventory")
+};
+
 UCLASS()
 class TEAM6_CH3_PROJECT_API AItemBase : public AActor
 {
@@ -40,6 +49,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
 	EItemType ItemType;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item")
+	EItemSlotType SlotType = EItemSlotType::Inventory;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Item|Stack")
 	bool bIsStackable = false;
