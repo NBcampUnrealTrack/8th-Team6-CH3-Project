@@ -5,6 +5,14 @@
 #include "../ItemBase.h"
 #include "WeaponBase.generated.h"
 
+//UENUM(BlueprintType)
+//enum class EWeaponType : uint8
+//{
+//	Rifle	 UMETA(DisplayName = "Rifle"),
+//	Shotgun	 UMETA(DisplayName = "Shotgun"),
+//	Pistol	 UMETA(DisplayName = "Pistol")
+//};
+
 UCLASS()
 class TEAM6_CH3_PROJECT_API AWeaponBase : public AItemBase
 {
@@ -19,8 +27,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<class UArrowComponent> FirePoint;
 
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	//EWeaponType WeaponType = EWeaponType::Rifle;
+
 	UFUNCTION(BlueprintCallable)
 	virtual void Fire();
+
 
 	UFUNCTION(BlueprintCallable)
 	float GetRoF() const

@@ -36,7 +36,7 @@ public:
 	TArray<FInventorySlot> Slots;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Inventory")
-	int32 MaxSlots = 30;
+	int32 MaxSlots = 1;
 
 	UPROPERTY(BlueprintAssignable)
 	FOnInventoryUpdated OnInventoryUpdated;

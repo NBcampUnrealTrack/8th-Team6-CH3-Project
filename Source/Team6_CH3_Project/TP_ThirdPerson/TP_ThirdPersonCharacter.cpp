@@ -10,6 +10,7 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "../Item/Weapons/SandboxWeaponBase.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -100,11 +101,16 @@ void ATP_ThirdPersonCharacter::SetupPlayerInputComponent(UInputComponent* Player
 		EnhancedInputComponent->BindAction(FireAction, ETriggerEvent::Completed, this, &ATP_ThirdPersonCharacter::OnFireStop);
 		EnhancedInputComponent->BindAction(ReloadAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnReload);
 
+		// Weapon Switch
+		EnhancedInputComponent->BindAction(SwitchMainWeaponAction, ETriggerEvent::Started, this, &ATP_ThirdPersonCharacter::SwitchToMainWeapon);
+		EnhancedInputComponent->BindAction(SwitchSubWeaponAction, ETriggerEvent::Started, this, &ATP_ThirdPersonCharacter::SwitchToSubWeapon);
+
+
 		// Interact
 		EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnInteract);
 
 		// Inventory
-		EnhancedInputComponent->BindAction(InventoryAction, ETriggerEvent::Started, this, &ATP_ThirdPersonCharacter::InInventoryToggle);
+		//EnhancedInputComponent->BindAction(InventoryAction, ETriggerEvent::Started, this, &ATP_ThirdPersonCharacter::InInventoryToggle); I키
 		EnhancedInputComponent->BindAction(UseItemAction, ETriggerEvent::Triggered, this, &ATP_ThirdPersonCharacter::OnUseItem);
 	}
 	else
@@ -155,12 +161,23 @@ void ATP_ThirdPersonCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 {
 	if (!Weapon) return;
 
-	if (EquippedWeapon)
+	if (Weapon->SlotType == EItemSlotType::MainWeapon)
 	{
-		InventoryComponent->AddItem(EquippedWeapon->GetClass(), 1);
-		EquippedWeapon->Destroy();
-		EquippedWeapon = nullptr;
+		if (MainWeaponSlot)
+		{
+			MainWeaponSlot->Destroy();
+		}
+		MainWeaponSlot = Weapon;
 	}
+	else if (Weapon->SlotType == EItemSlotType::SubWeapon)
+	{
+		if (SubWeaponSlot)
+		{
+			SubWeaponSlot->Destroy();
+		}
+		SubWeaponSlot = Weapon;
+	}
+
 	EquippedWeapon = Weapon;
 	Weapon->AttachToComponent(GetMesh(),
 		FAttachmentTransformRules::SnapToTargetIncludingScale,
@@ -207,6 +224,42 @@ void ATP_ThirdPersonCharacter::OnReload()
 //
 
 //
+// Weapon Switch
+
+void ATP_ThirdPersonCharacter::SwitchToMainWeapon()
+{
+	if (!MainWeaponSlot) return;
+
+	if (SubWeaponSlot)
+	{
+		SubWeaponSlot->SetActorHiddenInGame(true);
+	}
+
+	EquippedWeapon = MainWeaponSlot;
+	MainWeaponSlot->SetActorHiddenInGame(false);
+	MainWeaponSlot->AttachToComponent(GetMesh(),
+		FAttachmentTransformRules::SnapToTargetIncludingScale,
+		TEXT("ik_hand_gun"));
+}
+void ATP_ThirdPersonCharacter::SwitchToSubWeapon()
+{
+	if (!SubWeaponSlot) return;
+
+	if (MainWeaponSlot)
+	{
+		MainWeaponSlot->SetActorHiddenInGame(true);
+	}
+
+	EquippedWeapon = SubWeaponSlot;
+	SubWeaponSlot->SetActorHiddenInGame(false);
+	SubWeaponSlot->AttachToComponent(GetMesh(),
+		FAttachmentTransformRules::SnapToTargetIncludingScale,
+		TEXT("ik_hand_gun"));
+}
+// Weapon Switch
+//
+
+//
 // Interact : F
 void ATP_ThirdPersonCharacter::OnInteract()
 {
@@ -215,13 +268,24 @@ void ATP_ThirdPersonCharacter::OnInteract()
 
 	for (AActor* Actor : OverlappingActors)
 	{
+		// 무기는 바로 장착
+		ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(Actor);
+		if (Weapon)
+		{
+			Weapon->Interact(this);
+			break;
+		}
+
+		// 무기가 아닌 아이템은 인벤토리로
 		AItemBase* Item = Cast<AItemBase>(Actor);
 		if (Item)
 		{
-			if (InventoryComponent->AddItem(Item->GetClass(), Item->Quantity))
+			if (!InventoryComponent->Slots[0].bIsEmpty)
 			{
-				Item->Destroy();
+				InventoryComponent->RemoveItem(0, 1);
 			}
+			InventoryComponent->AddItem(Item->GetClass(), 1);
+			Item->Destroy();
 			break;
 		}
 	}
@@ -230,7 +294,29 @@ void ATP_ThirdPersonCharacter::OnInteract()
 //
 
 //
+// UseItem : E
+void ATP_ThirdPersonCharacter::OnUseItem()
+{
+	if (!InventoryComponent) return;
+
+	if (SelectedSlotIndex < 0 || SelectedSlotIndex >= InventoryComponent->Slots.Num()) return;
+
+	FInventorySlot& Slot = InventoryComponent->Slots[SelectedSlotIndex];
+	if (Slot.bIsEmpty || !Slot.ItemClass) return;
+
+	AItemBase* CDO = Cast<AItemBase>(Slot.ItemClass->GetDefaultObject());
+	if (!CDO) return;
+
+	CDO->Use(this);
+
+	InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
+}
+// UseItem : E
+//
+
+//
 // Inventory : I
+/*
 void ATP_ThirdPersonCharacter::InInventoryToggle()
 {
 	if (!bCanToggleInventory) return;
@@ -281,26 +367,7 @@ void ATP_ThirdPersonCharacter::InInventoryToggle()
 		);
 	}
 }
+*/
 // Inventory : I
 //
 
-//
-// UseItem : E
-void ATP_ThirdPersonCharacter::OnUseItem()
-{
-	if (!InventoryComponent) return;
-
-	if (SelectedSlotIndex < 0 || SelectedSlotIndex >= InventoryComponent->Slots.Num()) return;
-
-	FInventorySlot& Slot = InventoryComponent->Slots[SelectedSlotIndex];
-	if (Slot.bIsEmpty || !Slot.ItemClass) return;
-
-	AItemBase* CDO = Cast<AItemBase>(Slot.ItemClass->GetDefaultObject());
-	if (!CDO) return;
-
-	CDO->Use(this);
-
-	InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
-}
-// UseItem : E
-//
