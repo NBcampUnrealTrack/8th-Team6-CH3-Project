@@ -101,6 +101,8 @@ void ASandboxWeaponBase::LinetraceSpread(FVector Direction, int32 PellectCount, 
 
 		FCollisionQueryParams Params;
 		Params.AddIgnoredActor(this);
+		//GetWorld()->
+		//Params.AddIgnoredActor()
 
 		GetWorld()->LineTraceSingleByChannel(
 			HitResult,
@@ -116,10 +118,22 @@ void ASandboxWeaponBase::LinetraceSpread(FVector Direction, int32 PellectCount, 
 			End,
 			FColor::Red,
 			false,
-			0.2f,
+			10.2f,
 			0,
 			2.0f
 		);
+
+		if (HitResult.GetActor())
+		{
+			AActor* HitActor = HitResult.GetActor();
+
+			if (HitActor->ActorHasTag(FName(TEXT("Enemy"))))
+			{
+				UGameplayStatics::ApplyDamage(HitActor, DamagePerHit, nullptr, this, UDamageType::StaticClass());
+				UE_LOG(LogTemp, Log, TEXT("%s : %f 피해"), *HitResult.GetActor()->GetActorLabel(), DamagePerHit);
+			}
+
+		}
 	}
 }
 

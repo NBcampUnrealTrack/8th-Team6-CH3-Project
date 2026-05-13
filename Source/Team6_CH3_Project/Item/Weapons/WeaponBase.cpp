@@ -3,6 +3,7 @@
 
 #include "WeaponBase.h"
 #include "Components/ArrowComponent.h"
+#include "TP_ThirdPerson/LunarAsylumCharacter.h"
 #include "../ItemBase.h"
 #include "../../TP_ThirdPerson/TP_ThirdPersonCharacter.h"
 
@@ -10,11 +11,17 @@ AWeaponBase::AWeaponBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
-	SetRootComponent(Root);
+	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
+	SetRootComponent(SceneRoot);
+
+	Mesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Mesh"));
+	Mesh->SetupAttachment(SceneRoot);
 
 	FirePoint = CreateDefaultSubobject<UArrowComponent>(TEXT("FirePoint"));
-	FirePoint->SetupAttachment(Root);
+	FirePoint->SetupAttachment(Mesh);
+
+	SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("SphereComponent"));
+	SphereComponent->SetupAttachment(Mesh);
 
 	CanFire = true;
 	RoF = 0.4f;
@@ -42,7 +49,19 @@ void AWeaponBase::Interact(ACharacter* Character)
 {
 	if (Character)
 	{
-		ATP_ThirdPersonCharacter* Player = Cast<ATP_ThirdPersonCharacter>(Character);
+		//ATP_ThirdPersonCharacter* Player = Cast<ATP_ThirdPersonCharacter>(Character);
+		//if (Player)
+		//{
+		//	ASandboxWeaponBase* SandboxWeapon = Cast<ASandboxWeaponBase>(this);
+		//	if (SandboxWeapon)
+		//	{
+		//		Player->EquipWeapon(SandboxWeapon);
+		//		SetActorEnableCollision(false);
+		//	}
+		//}
+
+
+		ALunarAsylumCharacter* Player = Cast<ALunarAsylumCharacter>(Character);
 		if (Player)
 		{
 			ASandboxWeaponBase* SandboxWeapon = Cast<ASandboxWeaponBase>(this);

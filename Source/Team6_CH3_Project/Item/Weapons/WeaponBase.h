@@ -3,15 +3,9 @@
 
 #include "CoreMinimal.h"
 #include "../ItemBase.h"
+#include "ProjectTypes.h"
+#include "Components\SphereComponent.h"
 #include "WeaponBase.generated.h"
-
-//UENUM(BlueprintType)
-//enum class EWeaponType : uint8
-//{
-//	Rifle	 UMETA(DisplayName = "Rifle"),
-//	Shotgun	 UMETA(DisplayName = "Shotgun"),
-//	Pistol	 UMETA(DisplayName = "Pistol")
-//};
 
 UCLASS()
 class TEAM6_CH3_PROJECT_API AWeaponBase : public AItemBase
@@ -22,13 +16,34 @@ public:
 	AWeaponBase();
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-	TObjectPtr<USceneComponent> Root;
+	TObjectPtr<USceneComponent> SceneRoot;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<class UArrowComponent> FirePoint;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
-	//EWeaponType WeaponType = EWeaponType::Rifle;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+	UStaticMeshComponent* Mesh;
+
+	UPROPERTY(VisibleAnywhere)
+	USphereComponent* SphereComponent;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
+	FCharacterAnimMontages CharacterAnimMontages;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponType")
+	EWeaponType WeaponType;
+
+	UPROPERTY(EditAnywhere)
+	TSubclassOf<UCameraShakeBase> CameraShakeClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector EquipOffset;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector HolsterOffset;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+	class UNiagaraSystem* MuzzleEffect;
+
 
 	UFUNCTION(BlueprintCallable)
 	virtual void Fire();

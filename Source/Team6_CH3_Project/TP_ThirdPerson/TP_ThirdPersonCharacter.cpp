@@ -268,7 +268,7 @@ void ATP_ThirdPersonCharacter::OnInteract()
 
 	for (AActor* Actor : OverlappingActors)
 	{
-		// ¹«±â´Â ¹Ù·Î ÀåÂø
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ù·ï¿½ ï¿½ï¿½ï¿½ï¿½
 		ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(Actor);
 		if (Weapon)
 		{
@@ -276,7 +276,7 @@ void ATP_ThirdPersonCharacter::OnInteract()
 			break;
 		}
 
-		// ¹«±â°¡ ¾Æ´Ñ ¾ÆÀÌÅÛÀº ÀÎº¥Åä¸®·Î
+		// ï¿½ï¿½ï¿½â°¡ ï¿½Æ´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îºï¿½ï¿½ä¸®ï¿½ï¿½
 		AItemBase* Item = Cast<AItemBase>(Actor);
 		if (Item)
 		{

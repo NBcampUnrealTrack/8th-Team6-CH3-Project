@@ -20,13 +20,16 @@ class TEAM6_CH3_PROJECT_API UCombatHUDWidget : public UUserWidget // UCombatHUDW
 public:
 	// 팀원이 호출할 업데이트 함수
 	UFUNCTION(BlueprintCallable, Category = "HUD")
-	void UpdateHealth(float CurrentHealth, float MaxHealth);
+	void UpdateHealth(float CurrentHealth, float MaxHealth, float Amount);
 
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void UpdateAmmo(int32 CurrentAmmo, int32 MaxAmmo);
 
 	UFUNCTION(BlueprintCallable, Category = "HUD")
 	void SwitchWeaponSlot(int32 SlotIndex, UTexture2D* NewWeaponIcon);
+
+	UFUNCTION()
+	void SetIsAiming(bool bNewIsAiming);
 
 protected:
 	// 블루프린트 UI 변수 연결 (UMG의 이름과 똑같아야 함)
@@ -41,20 +44,25 @@ protected:
 	UWidgetAnimation* Anim_LowHealth;
 
 	UPROPERTY(meta = (BindWidget))
-	UImage* WeaponSlot_1;
+	UImage* Rifle;
 
 	UPROPERTY(meta = (BindWidget))
-	UImage* WeaponSlot_2;
+	UImage* Shotgun;
 
 	UPROPERTY(meta = (BindWidget))
-	UImage* WeaponSlot_3;
+	UImage* Pistol;
 
-	UPROPERTY(meta = (BindWidget))
-	UImage* WeaponSlot_4;
+	//UPROPERTY(meta = (BindWidget))
+	//UImage* WeaponSlot_4;
 
 	// --- 🔫 현재 무기 이름 텍스트 ---
 	UPROPERTY(meta = (BindWidget))
 	UImage* Img_CurrentWeapon;
+
+	virtual void NativeConstruct() override;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Combat")
+	class ALunarAsylumCharacter* LunarAsylumCharacter = nullptr;
 
 private:
 	// 애니메이션 중복 재생 방지용 상태 변수

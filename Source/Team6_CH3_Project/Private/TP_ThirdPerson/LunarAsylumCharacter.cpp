@@ -10,6 +10,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Player/PlayerStatComponent.h"
+#include "../Inventory/InventoryComponent.h"
 #include "InputActionValue.h"
 
 ALunarAsylumCharacter::ALunarAsylumCharacter()
@@ -32,6 +33,8 @@ ALunarAsylumCharacter::ALunarAsylumCharacter()
 	Camera->SetupAttachment(CameraArm);
 
 	PlayerStatComponent = CreateDefaultSubobject<UPlayerStatComponent>(TEXT("StatComponent"));
+
+	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
 }
 
 void ALunarAsylumCharacter::BeginPlay()
@@ -84,9 +87,9 @@ void ALunarAsylumCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 
 			EnhancedInputComponent->BindAction(InputConfigData->SecondaryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::SecondaryEquipToggle);
 
-			EnhancedInputComponent->BindAction(InputConfigData->ReloadAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::Reload);
+			EnhancedInputComponent->BindAction(InputConfigData->UseItemAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::UseItem);
 
-			EnhancedInputComponent->BindAction(InputConfigData->InventoryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::InventoryToggle);
+			//EnhancedInputComponent->BindAction(InputConfigData->InventoryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::InventoryToggle);
 
 			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::Interact);
 		}
@@ -109,6 +112,8 @@ float ALunarAsylumCharacter::TakeDamage(float DamageAmount, FDamageEvent const& 
 	float Damage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
 	ApplyDamage(Damage);
+
+	UE_LOG(LogTemp, Log, TEXT("TakeDamage"));
 
 	return Damage;
 }
@@ -159,13 +164,9 @@ void ALunarAsylumCharacter::StopAim()
 
 void ALunarAsylumCharacter::OnFire()
 {
-
-}
-
-void ALunarAsylumCharacter::StartFire()
-{
-	if (CurrentEquipState != EEquipState::Unarmed && CurrentActionState == EActionState::Idle && CurrentWeapon)
+	if (CurrentWeapon)
 	{
+		CurrentWeapon->Fire();
 		PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Fire);
 		if (APlayerCameraManager* CamManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
 		{
@@ -178,9 +179,36 @@ void ALunarAsylumCharacter::StartFire()
 	}
 }
 
+void ALunarAsylumCharacter::StartFire()
+{
+	//if (CurrentEquipState != EEquipState::Unarmed && CurrentActionState == EActionState::Idle && CurrentWeapon)
+	//{
+	//	PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Fire);
+	//	if (APlayerCameraManager* CamManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
+	//	{
+	//		CamManager->StartCameraShake(CurrentWeapon->CameraShakeClass, 1.0f);
+	//	}
+	//	if (CurrentWeapon->MuzzleEffect)
+	//	{
+	//		UNiagaraFunctionLibrary::SpawnSystemAttached(CurrentWeapon->MuzzleEffect, CurrentWeapon->Mesh, FName(TEXT("Socket_Muzzle")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+	//	}
+	//}
+	if (CurrentWeapon)
+	{
+		GetWorldTimerManager().SetTimer(
+			AutoFireTimer,
+			this,
+			&ALunarAsylumCharacter::OnFire,
+			CurrentWeapon->GetRoF(),
+			true
+		);
+		OnFire();
+	}
+}
+
 void ALunarAsylumCharacter::StopFire()
 {
-
+	GetWorldTimerManager().ClearTimer(AutoFireTimer);
 }
 
 void ALunarAsylumCharacter::StartSprint()
@@ -197,20 +225,83 @@ void ALunarAsylumCharacter::StopSprint()
 
 void ALunarAsylumCharacter::Interact()
 {
+	TArray<AActor*> OverlappingActors;
+	GetOverlappingActors(OverlappingActors, AItemBase::StaticClass());
+
+	for (AActor* Actor : OverlappingActors)
+	{
+		ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(Actor);
+		if (Weapon)
+		{
+			Weapon->Interact(this);
+			break;
+		}
+		AItemBase* Item = Cast<AItemBase>(Actor);
+		if (Item)
+		{
+			if (!InventoryComponent->Slots[0].bIsEmpty)
+			{
+				InventoryComponent->RemoveItem(0, 1);
+			}
+			InventoryComponent->AddItem(Item->GetClass(), 1);
+			Item->Destroy();
+			break;
+		}
+	}
 	UE_LOG(LogTemp, Log, TEXT("Interact"));
 }
 
-void ALunarAsylumCharacter::InventoryToggle()
+void ALunarAsylumCharacter::UseItem()
 {
-	UE_LOG(LogTemp, Log, TEXT("InventoryToggle"));
+	if (!InventoryComponent) return;
+
+	if (SelectedSlotIndex < 0 || SelectedSlotIndex >= InventoryComponent->Slots.Num()) return;
+
+	FInventorySlot& Slot = InventoryComponent->Slots[SelectedSlotIndex];
+	if (Slot.bIsEmpty || !Slot.ItemClass) return;
+
+	AItemBase* CDO = Cast<AItemBase>(Slot.ItemClass->GetDefaultObject());
+	if (!CDO) return;
+
+	CDO->Use(this);
+
+	InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
 }
 
-void ALunarAsylumCharacter::Reload()
+
+//void ALunarAsylumCharacter::Reload()
+//{
+//	if (CurrentWeapon && CurrentActionState == EActionState::Idle)
+//	{
+//		PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Reload);
+//	}
+//}
+
+void ALunarAsylumCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 {
-	if (CurrentWeapon && CurrentActionState == EActionState::Idle)
+	if (!Weapon) return;
+
+	if (Weapon->SlotType == EItemSlotType::MainWeapon)
 	{
-		PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Reload);
+		if (PrimaryWeapon)
+		{
+			PrimaryWeapon->Destroy();
+		}
+		PrimaryWeapon = Weapon;
 	}
+	else if (Weapon->SlotType == EItemSlotType::SubWeapon)
+	{
+		if (SecondaryWeapon)
+		{
+			SecondaryWeapon->Destroy();
+		}
+		SecondaryWeapon = Weapon;
+	}
+
+	CurrentWeapon = Weapon;
+	Weapon->AttachToComponent(GetMesh(),
+		FAttachmentTransformRules::SnapToTargetIncludingScale,
+		TEXT("PrimaryWeaponSocket"));
 }
 
 void ALunarAsylumCharacter::PrimaryEquipToggle()
@@ -219,17 +310,22 @@ void ALunarAsylumCharacter::PrimaryEquipToggle()
 	{
 		if (CurrentEquipState == EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
 		{
+			//CurrentWeapon = PrimaryWeapon;
+			//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
+
 			CurrentWeapon = PrimaryWeapon;
 			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
 
-			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
+			PlayAnimMontage(PrimaryWeapon->CharacterAnimMontages.Equip);
+			//PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
 			return;
 		}
 		if (CurrentEquipState == EEquipState::Primary && CurrentActionState == EActionState::Idle)
 		{
-			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("PrimaryWeaponSocket"));
+			//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("PrimaryWeaponSocket"));
 
 			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Holster);
+			//PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Holster);
 		}
 	}
 }
@@ -241,7 +337,7 @@ void ALunarAsylumCharacter::SecondaryEquipToggle()
 		if (CurrentEquipState == EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
 		{
 			CurrentWeapon = SecondaryWeapon;
-			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
+			//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
 
 			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
 			return;
@@ -264,6 +360,26 @@ void ALunarAsylumCharacter::HitReaction()
 void ALunarAsylumCharacter::OnDeath()
 {
 
+}
+
+void ALunarAsylumCharacter::GrabWeapon()
+{
+	if (CurrentWeapon && GetMesh())
+	{
+		FVector NewLocation(-5.434822f, 4.287620f, 0.943788f);
+		FRotator NewRotator(12.202518f, 91.397473f, 21.198131f);
+
+		//GetMesh()->SetRelativeLocation(NewLocation);
+		//GetMesh()->SetRelativeRotation(NewRotator);
+
+
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
+
+		//CurrentWeapon->SetActorRelativeLocation(NewLocation);
+		//CurrentWeapon->SetActorRelativeRotation(NewRotator);
+		CurrentWeapon->Mesh->SetRelativeLocation(NewLocation);
+		CurrentWeapon->Mesh->SetRelativeRotation(NewRotator);
+	}
 }
 
 void ALunarAsylumCharacter::SetActionState(EActionState NewState)

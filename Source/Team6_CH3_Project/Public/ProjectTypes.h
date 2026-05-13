@@ -45,7 +45,7 @@ struct FAimSetting
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float NormalSensitivity = 1.f; // 1.0배
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float AimSensitivity = 0.5f;  // 0.5배
+	float AimSensitivity = 0.2f;  // 0.5배
 
 	// 보간 속도 (줌이 얼마나 빠르게 될지)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
