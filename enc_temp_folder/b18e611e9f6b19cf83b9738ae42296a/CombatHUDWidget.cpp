@@ -90,14 +90,15 @@ void UCombatHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	if (WeaponSlot_1) WeaponSlot_1->SetRenderOpacity(0.3f);
-	if (WeaponSlot_2) WeaponSlot_2->SetRenderOpacity(0.3f);
-	if (WeaponSlot_3) WeaponSlot_3->SetRenderOpacity(0.3f);
-
 	ATP_ThirdPersonCharacter* Character = Cast<ATP_ThirdPersonCharacter>(GetOwningPlayerPawn());
 
+	UE_LOG(LogTemp, Warning, TEXT("Character: %s"),
+		Character ? TEXT("valid") : TEXT("null"));
 	if (!Character) return;
+
 	CachedInventoryComp = Character->InventoryComponent;
+	UE_LOG(LogTemp, Warning, TEXT("InventoryComp: %s"),
+		CachedInventoryComp ? TEXT("valid") : TEXT("null"));
 	if (!CachedInventoryComp) return;
 
 	CachedInventoryComp->OnInventoryUpdated.AddDynamic(this, &UCombatHUDWidget::UpdateInventorySlot);
@@ -108,8 +109,6 @@ void UCombatHUDWidget::NativeConstruct()
 void UCombatHUDWidget::UpdateInventorySlot()
 {
 	if (!InventorySlot_1 || !CachedInventoryComp) return;
-
-	if (CachedInventoryComp->Slots.Num() == 0) return;
 
 	FInventorySlot& InvSlot = CachedInventoryComp->Slots[0];
 	if (!InvSlot.bIsEmpty && InvSlot.ItemClass)
@@ -130,6 +129,6 @@ void UCombatHUDWidget::UpdateInventorySlot()
 	}
 	else
 	{
-		InventorySlot_1->SetVisibility(ESlateVisibility::Hidden);
+		InventorySlot_1->SetRenderOpacity(0.3f);
 	}
 }

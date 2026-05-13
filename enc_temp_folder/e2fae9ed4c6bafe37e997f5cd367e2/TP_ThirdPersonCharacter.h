@@ -191,7 +191,7 @@ public:
 	//
 	// Selected Slot
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Inventory")
-	int32 SelectedSlotIndex = 0;
+	int32 SelectedSlotIndex = -1;
 	// Selected Slot
 	//
 
