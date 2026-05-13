@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "WeaponBase.h"
+#include "ProjectTypes.h"
 #include "SandboxWeaponBase.generated.h"
 
 UCLASS()
@@ -19,6 +20,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void Reload();
 
+	// 사운드 사용안함, 애니메이션 몽타주에서 사용
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	USoundBase* ReloadStartSound;
 
@@ -33,6 +35,27 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	float ReloadTime = 2.0f;
+
+
+	////////  추가 ///////////////
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
+	//FCharacterAnimMontages CharacterAnimMontages;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponType")
+	//EWeaponType WeaponType;
+
+	//UPROPERTY(EditAnywhere)
+	//TSubclassOf<UCameraShakeBase> CameraShakeClass;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//FVector EquipOffset;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//FVector HolsterOffset;
+
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+	//class UNiagaraSystem* MuzzleEffect;
+
+
 
 protected:
 	UFUNCTION(BlueprintCallable)

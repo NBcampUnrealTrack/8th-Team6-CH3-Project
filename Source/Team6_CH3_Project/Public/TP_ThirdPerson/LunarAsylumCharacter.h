@@ -6,6 +6,7 @@
 #include "GameFramework/Character.h"
 #include "Player\WeaponTestActor.h"
 #include "ProjectTypes.h"
+#include "../Item/Weapons/SandboxWeaponBase.h"
 #include "LunarAsylumCharacter.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEquipStateChanged, EEquipState, EquipState);
@@ -61,15 +62,27 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	EActionState CurrentActionState;
 
+
+	//// 합치기 테스트 
+	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	//TObjectPtr<ASandboxWeaponBase> EquippedWeapon;
+
+	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	//TObjectPtr<ASandboxWeaponBase> MainWeaponSlot;
+
+	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	//TObjectPtr<ASandboxWeaponBase> SubWeaponSlot;
+
+
 	// 주무기
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	AWeaponTestActor* PrimaryWeapon;
+	ASandboxWeaponBase* PrimaryWeapon;
 	// 보조무기
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	AWeaponTestActor* SecondaryWeapon;
+	ASandboxWeaponBase* SecondaryWeapon;
 	// 현재 착용중인 무기를 가리키는 포인터
 	UPROPERTY(BlueprintReadOnly)
-	AWeaponTestActor* CurrentWeapon;
+	ASandboxWeaponBase* CurrentWeapon;
 
 	UPROPERTY(BlueprintAssignable)
 	FEquipStateChanged OnEquipStateChanged;
@@ -78,6 +91,14 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FAimingChanged OnAimingChanged;
+
+	class UInventoryComponent* InventoryComponent;
+
+	// 인벤토리
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Inventory")
+	int32 SelectedSlotIndex = -1;
+
+	FTimerHandle AutoFireTimer;
 
 	// 이동
 	void Move(const struct FInputActionValue& Value);
@@ -122,8 +143,8 @@ protected:
 	// 상호작용 
 	void Interact();
 
-	// 인벤토리
-	void InventoryToggle();
+	// 아이템 사용
+	void UseItem();
 
 	// 재장전
 	void Reload();
@@ -141,4 +162,10 @@ protected:
 	UFUNCTION()
 	void OnDeath();
 
+
+	UFUNCTION(BlueprintCallable)
+	void GrabWeapon();
+
+	public:
+	void EquipWeapon(ASandboxWeaponBase* Weapon);
 };

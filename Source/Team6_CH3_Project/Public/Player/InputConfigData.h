@@ -47,13 +47,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	class UInputAction* SecondaryAction;
 
-	// 재장전
+	// 아이템 사용
 	UPROPERTY(EditAnywhere, Category = "Input")
-	class UInputAction* ReloadAction;
-
-	// 인벤토리
-	UPROPERTY(EditAnywhere, Category = "Input")
-	class UInputAction* InventoryAction;
+	class UInputAction* UseItemAction;
 
 	// 상호작용
 	UPROPERTY(EditAnywhere, Category = "Input")

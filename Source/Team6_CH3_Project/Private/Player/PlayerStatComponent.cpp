@@ -21,7 +21,7 @@ void UPlayerStatComponent::HealHP(float Amount)
 void UPlayerStatComponent::ApplyDamage(float Amount)
 {
 	PlayerStats.CurrentHP = FMath::Clamp(PlayerStats.CurrentHP - Amount, 0.f, PlayerStats.MaxHP);
-
+	UE_LOG(LogTemp, Log, TEXT("UPlayerStatComponent::ApplyDamage"));
 	OnHPChanged.Broadcast(PlayerStats.CurrentHP, PlayerStats.MaxHP, -Amount);
 
 	if (PlayerStats.CurrentHP <= 0.f)
