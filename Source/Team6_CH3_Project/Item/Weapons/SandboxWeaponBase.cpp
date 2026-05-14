@@ -6,9 +6,10 @@
 
 void ASandboxWeaponBase::Fire()
 {
-	if (!CanFire) return;
+	//if (CanAttack()) return;
+
 	SandboxFire();
-	ApplyRecoil();
+	//ApplyRecoil();
 
 	CanFire = false;
 	GetWorldTimerManager().SetTimer(
@@ -20,43 +21,53 @@ void ASandboxWeaponBase::Fire()
 	);
 }
 
-void ASandboxWeaponBase::Reload()
+//void ASandboxWeaponBase::Reload()
+//{
+//	if (bIsReloading) return;
+//	if (CurrentAmmo == MaxAmmo) return;
+//	
+//	PlaySound(ReloadStartSound);
+//
+//	bIsReloading = true;
+//	CanFire = false;
+//
+//	float SoundDuration = ReloadStartSound ? ReloadStartSound->GetDuration() : ReloadTime;
+//
+//	GetWorldTimerManager().SetTimer(
+//		TimerReloadDelay,
+//		this,
+//		&ASandboxWeaponBase::FinishReload,
+//		SoundDuration,
+//		false
+//	);
+//}
+
+//void ASandboxWeaponBase::FinishReload()
+//{
+//	CurrentAmmo = MaxAmmo;
+//	bIsReloading = false;
+//	CanFire = true;
+//
+//	PlaySound(ReloadEndSound);
+//}
+
+//bool ASandboxWeaponBase::CheckAmmo()
+//{
+//	if (CurrentAmmo < AmmoPerFire)
+//	{
+//		//PlaySound(EmptySound);
+//		return false;
+//	}
+//	return true;
+//}
+
+bool ASandboxWeaponBase::CanAttack()
 {
-	if (bIsReloading) return;
-	if (CurrentAmmo == MaxAmmo) return;
-	
-	PlaySound(ReloadStartSound);
-
-	bIsReloading = true;
-	CanFire = false;
-
-	float SoundDuration = ReloadStartSound ? ReloadStartSound->GetDuration() : ReloadTime;
-
-	GetWorldTimerManager().SetTimer(
-		TimerReloadDelay,
-		this,
-		&ASandboxWeaponBase::FinishReload,
-		SoundDuration,
-		false
-	);
-}
-
-void ASandboxWeaponBase::FinishReload()
-{
-	CurrentAmmo = MaxAmmo;
-	bIsReloading = false;
-	CanFire = true;
-
-	PlaySound(ReloadEndSound);
-}
-
-bool ASandboxWeaponBase::CheckAmmo()
-{
-	if (CurrentAmmo < AmmoPerFire)
+	if (CurrentAmmo < AmmoPerFire || !CanFire)
 	{
-		PlaySound(EmptySound);
 		return false;
 	}
+
 	return true;
 }
 
@@ -64,14 +75,20 @@ void ASandboxWeaponBase::LinetraceOneShot(FVector Direction)
 {
 	FHitResult HitResult;
 	FVector Start = FirePoint->GetComponentLocation();
-	FVector End = Start + Direction * Range;
+	//FVector End = Start + Direction * Range;
 
+
+	FVector ViewPointLocation;
+	FRotator ViewPointRotation;
+	GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(ViewPointLocation, ViewPointRotation);
+
+	FVector End = ViewPointLocation + ViewPointRotation.Vector() * Range;
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(this);
 
 	GetWorld()->LineTraceSingleByChannel(
 		HitResult,
-		Start,
+		ViewPointLocation,
 		End,
 		ECC_Visibility,
 		Params
@@ -79,34 +96,53 @@ void ASandboxWeaponBase::LinetraceOneShot(FVector Direction)
 
 	DrawDebugLine(
 		GetWorld(),
-		Start,
+		ViewPointLocation,
 		End,
 		FColor::Red,
 		false,
-		0.2f,
+		5.f,
 		0,
 		2.0f
 	);
+
+	if (HitResult.GetActor())
+	{
+		AActor* HitActor = HitResult.GetActor();
+
+		if (HitActor->ActorHasTag(FName(TEXT("Enemy"))))
+		{
+			UGameplayStatics::ApplyDamage(HitActor, DamagePerHit, nullptr, this, UDamageType::StaticClass());
+			UE_LOG(LogTemp, Log, TEXT("%s : %f 피해"), *HitResult.GetActor()->GetActorLabel(), DamagePerHit);
+		}
+
+	}
 }
 
 void ASandboxWeaponBase::LinetraceSpread(FVector Direction, int32 PellectCount, float SpreadAngle)
 {
 	for (int32 i = 0; i < PellectCount; i++)
 	{
-		FVector SpreadDir = FMath::VRandCone(Direction, FMath::DegreesToRadians(SpreadAngle));
+		//FVector SpreadDir = FMath::VRandCone(Direction, FMath::DegreesToRadians(SpreadAngle));
 
 		FHitResult HitResult;
-		FVector Start = FirePoint->GetComponentLocation();
-		FVector End = Start + SpreadDir * Range;
+		//FVector Start = FirePoint->GetComponentLocation();
+		//FVector End = Start + SpreadDir * Range;
+
+		FVector ViewPointLocation;
+		FRotator ViewPointRotation;
+		GetWorld()->GetFirstPlayerController()->GetPlayerViewPoint(ViewPointLocation, ViewPointRotation);
+
+		FVector SpreadDir = FMath::VRandCone(ViewPointRotation.Vector(), FMath::DegreesToRadians(SpreadAngle));
+
+		FVector End = ViewPointLocation + SpreadDir * Range;
 
 		FCollisionQueryParams Params;
 		Params.AddIgnoredActor(this);
-		//GetWorld()->
-		//Params.AddIgnoredActor()
+
 
 		GetWorld()->LineTraceSingleByChannel(
 			HitResult,
-			Start,
+			ViewPointLocation,
 			End,
 			ECC_Visibility,
 			Params
@@ -114,11 +150,11 @@ void ASandboxWeaponBase::LinetraceSpread(FVector Direction, int32 PellectCount, 
 
 		DrawDebugLine(
 			GetWorld(),
-			Start,
+			ViewPointLocation,
 			End,
 			FColor::Red,
 			false,
-			10.2f,
+			5.f,
 			0,
 			2.0f
 		);
@@ -137,26 +173,26 @@ void ASandboxWeaponBase::LinetraceSpread(FVector Direction, int32 PellectCount, 
 	}
 }
 
-void ASandboxWeaponBase::PlaySound(USoundBase* Sound)
-{
-	if (Sound)
-	{
-		UGameplayStatics::PlaySoundAtLocation(
-			this,
-			Sound,
-			GetActorLocation()
-		);
-	}
-}
+//void ASandboxWeaponBase::PlaySound(USoundBase* Sound)
+//{
+//	if (Sound)
+//	{
+//		UGameplayStatics::PlaySoundAtLocation(
+//			this,
+//			Sound,
+//			GetActorLocation()
+//		);
+//	}
+//}
 
-void ASandboxWeaponBase::ApplyRecoil()
-{
-	APlayerController* PC = GetWorld()->GetFirstPlayerController();
-	if (PC)
-	{
-		PC->AddPitchInput(-RecoilAmount);
-	}
-}
+//void ASandboxWeaponBase::ApplyRecoil()
+//{
+//	APlayerController* PC = GetWorld()->GetFirstPlayerController();
+//	if (PC)
+//	{
+//		PC->AddPitchInput(-RecoilAmount);
+//	}
+//}
 
 
 

@@ -215,10 +215,10 @@ void ATP_ThirdPersonCharacter::OnFireStop()
 
 void ATP_ThirdPersonCharacter::OnReload()
 {
-	if (EquippedWeapon)
-	{
-		EquippedWeapon->Reload();
-	}
+	//if (EquippedWeapon)
+	//{
+	//	EquippedWeapon->Reload();
+	//}
 }
 // Weapon
 //

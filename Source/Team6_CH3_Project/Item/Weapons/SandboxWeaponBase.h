@@ -17,24 +17,24 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void SandboxFire();
 
-	UFUNCTION(BlueprintCallable)
-	void Reload();
+	//UFUNCTION(BlueprintCallable)
+	//void Reload();
 
 	// 사운드 사용안함, 애니메이션 몽타주에서 사용
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	USoundBase* ReloadStartSound;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//USoundBase* ReloadStartSound;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	USoundBase* ReloadEndSound;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//USoundBase* ReloadEndSound;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	USoundBase* EmptySound;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//USoundBase* EmptySound;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float RecoilAmount = 1.0f;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float RecoilAmount = 1.0f;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	float ReloadTime = 2.0f;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//float ReloadTime = 2.0f;
 
 
 	////////  추가 ///////////////
@@ -55,11 +55,10 @@ public:
 	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
 	//class UNiagaraSystem* MuzzleEffect;
 
-
+	UFUNCTION(BlueprintCallable)
+	bool CanAttack();
 
 protected:
-	UFUNCTION(BlueprintCallable)
-	bool CheckAmmo();
 
 	UFUNCTION(BlueprintCallable)
 	void LinetraceOneShot(FVector Direction);
@@ -67,17 +66,17 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void LinetraceSpread(FVector Direction, int32 PellectCount, float SpreadAngle);
 
-	UFUNCTION(BlueprintCallable)
-	void PlaySound(USoundBase* Sound);
+	//UFUNCTION(BlueprintCallable)
+	//void PlaySound(USoundBase* Sound);
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateAmmo();
 
-	UFUNCTION(BlueprintCallable)
-	void ApplyRecoil();
+	//UFUNCTION(BlueprintCallable)
+	//void ApplyRecoil();
 
-	UFUNCTION()
-	void FinishReload();
+	//UFUNCTION()
+	//void FinishReload();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bIsReloading = false;

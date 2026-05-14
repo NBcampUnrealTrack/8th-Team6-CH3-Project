@@ -50,12 +50,12 @@ void ALunarAsylumCharacter::BeginPlay()
 void ALunarAsylumCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
 	UpdateAimZoom(DeltaTime);
 
-	// 디버그 출력 테스트 //
+	// 캐릭터 상태 출력 확인용//
 	FString ActionStateString = UEnum::GetValueAsString(CurrentActionState);
 	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, ActionStateString);
-	// 디버그 출력 테스트 //
 	FString EquipStateString = UEnum::GetValueAsString(CurrentEquipState);
 	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Yellow, EquipStateString);
 }
@@ -89,8 +89,6 @@ void ALunarAsylumCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 
 			EnhancedInputComponent->BindAction(InputConfigData->UseItemAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::UseItem);
 
-			//EnhancedInputComponent->BindAction(InputConfigData->InventoryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::InventoryToggle);
-
 			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::Interact);
 		}
 	}
@@ -111,9 +109,11 @@ float ALunarAsylumCharacter::TakeDamage(float DamageAmount, FDamageEvent const& 
 {
 	float Damage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
 
-	ApplyDamage(Damage);
-
-	UE_LOG(LogTemp, Log, TEXT("TakeDamage"));
+	if (!(CurrentActionState == EActionState::Dead || CurrentActionState == EActionState::HitReaction))
+	{
+		HitReaction();
+		ApplyDamage(Damage);
+	}
 
 	return Damage;
 }
@@ -123,7 +123,6 @@ void ALunarAsylumCharacter::ApplyDamage(float Amount)
 	if (PlayerStatComponent)
 	{
 		PlayerStatComponent->ApplyDamage(Amount);
-		HitReaction();
 	}
 }
 
@@ -164,14 +163,16 @@ void ALunarAsylumCharacter::StopAim()
 
 void ALunarAsylumCharacter::OnFire()
 {
-	if (CurrentWeapon)
+	if (CurrentWeapon && CurrentWeapon->CanAttack() && CurrentEquipState != EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
 	{
 		CurrentWeapon->Fire();
+
 		PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Fire);
 		if (APlayerCameraManager* CamManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
 		{
 			CamManager->StartCameraShake(CurrentWeapon->CameraShakeClass, 1.0f);
 		}
+
 		if (CurrentWeapon->MuzzleEffect)
 		{
 			UNiagaraFunctionLibrary::SpawnSystemAttached(CurrentWeapon->MuzzleEffect, CurrentWeapon->Mesh, FName(TEXT("Socket_Muzzle")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
@@ -181,27 +182,9 @@ void ALunarAsylumCharacter::OnFire()
 
 void ALunarAsylumCharacter::StartFire()
 {
-	//if (CurrentEquipState != EEquipState::Unarmed && CurrentActionState == EActionState::Idle && CurrentWeapon)
-	//{
-	//	PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Fire);
-	//	if (APlayerCameraManager* CamManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
-	//	{
-	//		CamManager->StartCameraShake(CurrentWeapon->CameraShakeClass, 1.0f);
-	//	}
-	//	if (CurrentWeapon->MuzzleEffect)
-	//	{
-	//		UNiagaraFunctionLibrary::SpawnSystemAttached(CurrentWeapon->MuzzleEffect, CurrentWeapon->Mesh, FName(TEXT("Socket_Muzzle")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
-	//	}
-	//}
 	if (CurrentWeapon)
 	{
-		GetWorldTimerManager().SetTimer(
-			AutoFireTimer,
-			this,
-			&ALunarAsylumCharacter::OnFire,
-			CurrentWeapon->GetRoF(),
-			true
-		);
+		GetWorldTimerManager().SetTimer(AutoFireTimer, this, &ALunarAsylumCharacter::OnFire, CurrentWeapon->GetRoF(), true);
 		OnFire();
 	}
 }
@@ -248,7 +231,6 @@ void ALunarAsylumCharacter::Interact()
 			break;
 		}
 	}
-	UE_LOG(LogTemp, Log, TEXT("Interact"));
 }
 
 void ALunarAsylumCharacter::UseItem()
@@ -267,15 +249,6 @@ void ALunarAsylumCharacter::UseItem()
 
 	InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
 }
-
-
-//void ALunarAsylumCharacter::Reload()
-//{
-//	if (CurrentWeapon && CurrentActionState == EActionState::Idle)
-//	{
-//		PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Reload);
-//	}
-//}
 
 void ALunarAsylumCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 {
@@ -299,9 +272,46 @@ void ALunarAsylumCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 	}
 
 	CurrentWeapon = Weapon;
-	Weapon->AttachToComponent(GetMesh(),
-		FAttachmentTransformRules::SnapToTargetIncludingScale,
-		TEXT("PrimaryWeaponSocket"));
+
+	if (CurrentWeapon->WeaponType == EWeaponType::Shotgun || CurrentWeapon->WeaponType == EWeaponType::Rifle)
+	{
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("PrimaryWeaponSocket"));
+	}
+	else
+	{
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("SecondaryWeaponSocket"));
+	}
+}
+
+void ALunarAsylumCharacter::ANAttachWeapon()
+{
+	if (CurrentWeapon && GetMesh())
+	{
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
+
+		CurrentWeapon->Mesh->SetRelativeLocation(CurrentWeapon->EquipOffset.GetLocation());
+		CurrentWeapon->Mesh->SetRelativeRotation(CurrentWeapon->EquipOffset.GetRotation());
+	}
+}
+
+void ALunarAsylumCharacter::ANHolsterWeapon()
+{
+	if (CurrentWeapon && GetMesh())
+	{
+		//
+		// CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("PrimaryWeaponSocket"));
+		if (CurrentWeapon->WeaponType == EWeaponType::Shotgun || CurrentWeapon->WeaponType == EWeaponType::Rifle)
+		{
+			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("PrimaryWeaponSocket"));
+		}
+		else
+		{
+			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("SecondaryWeaponSocket"));
+		}
+
+		CurrentWeapon->Mesh->SetRelativeLocation(CurrentWeapon->HolsterOffset.GetLocation());
+		CurrentWeapon->Mesh->SetRelativeRotation(CurrentWeapon->HolsterOffset.GetRotation());
+	}
 }
 
 void ALunarAsylumCharacter::PrimaryEquipToggle()
@@ -310,22 +320,15 @@ void ALunarAsylumCharacter::PrimaryEquipToggle()
 	{
 		if (CurrentEquipState == EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
 		{
-			//CurrentWeapon = PrimaryWeapon;
-			//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
-
 			CurrentWeapon = PrimaryWeapon;
-			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
-
-			PlayAnimMontage(PrimaryWeapon->CharacterAnimMontages.Equip);
-			//PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
+			//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
+			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
 			return;
 		}
 		if (CurrentEquipState == EEquipState::Primary && CurrentActionState == EActionState::Idle)
 		{
 			//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("PrimaryWeaponSocket"));
-
 			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Holster);
-			//PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Holster);
 		}
 	}
 }
@@ -344,7 +347,7 @@ void ALunarAsylumCharacter::SecondaryEquipToggle()
 		}
 		if (CurrentEquipState == EEquipState::Secondary && CurrentActionState == EActionState::Idle)
 		{
-			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("SecondaryWeaponSocket"));
+			//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("SecondaryWeaponSocket"));
 
 			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Holster);
 		}
@@ -354,33 +357,50 @@ void ALunarAsylumCharacter::SecondaryEquipToggle()
 void ALunarAsylumCharacter::HitReaction()
 {
 	//if (CurrentActionState == EActionState::Dead) return;
-	StopAnimMontage();
+	//StopAnimMontage();
+
+	if (AM_HitReaction)
+	{
+		PlayAnimMontage(AM_HitReaction);
+	}
 }
 
 void ALunarAsylumCharacter::OnDeath()
 {
 
-}
-
-void ALunarAsylumCharacter::GrabWeapon()
-{
-	if (CurrentWeapon && GetMesh())
+	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
 	{
-		FVector NewLocation(-5.434822f, 4.287620f, 0.943788f);
-		FRotator NewRotator(12.202518f, 91.397473f, 21.198131f);
+		StopAnimMontage();
+		DisableInput(PlayerController);
 
-		//GetMesh()->SetRelativeLocation(NewLocation);
-		//GetMesh()->SetRelativeRotation(NewRotator);
-
-
-		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
-
-		//CurrentWeapon->SetActorRelativeLocation(NewLocation);
-		//CurrentWeapon->SetActorRelativeRotation(NewRotator);
-		CurrentWeapon->Mesh->SetRelativeLocation(NewLocation);
-		CurrentWeapon->Mesh->SetRelativeRotation(NewRotator);
+		if (AM_Death)
+		{
+			PlayAnimMontage(AM_Death);
+		}
 	}
+
+
 }
+
+//void ALunarAsylumCharacter::GrabWeapon()
+//{
+//	if (CurrentWeapon && GetMesh())
+//	{
+//		FVector NewLocation(-5.434822f, 4.287620f, 0.943788f);
+//		FRotator NewRotator(12.202518f, 91.397473f, 21.198131f);
+//
+//		//GetMesh()->SetRelativeLocation(NewLocation);
+//		//GetMesh()->SetRelativeRotation(NewRotator);
+//
+//
+//		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
+//
+//		//CurrentWeapon->SetActorRelativeLocation(NewLocation);
+//		//CurrentWeapon->SetActorRelativeRotation(NewRotator);
+//		CurrentWeapon->Mesh->SetRelativeLocation(NewLocation);
+//		CurrentWeapon->Mesh->SetRelativeRotation(NewRotator);
+//	}
+//}
 
 void ALunarAsylumCharacter::SetActionState(EActionState NewState)
 {

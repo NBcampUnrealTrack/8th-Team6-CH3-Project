@@ -55,10 +55,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Movement")
 	FMovementSetting MoveSettings;
 
-	// 맨손/주무기/보조무기
+	// 캐릭터 상태 - 맨손/주무기/보조무기
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	EEquipState CurrentEquipState;
 
+	// 애니메이션 상태
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	EActionState CurrentActionState;
 
@@ -91,6 +92,12 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FAimingChanged OnAimingChanged;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* AM_HitReaction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UAnimMontage* AM_Death;
 
 	class UInventoryComponent* InventoryComponent;
 
@@ -163,9 +170,15 @@ protected:
 	void OnDeath();
 
 
-	UFUNCTION(BlueprintCallable)
-	void GrabWeapon();
+	//UFUNCTION(BlueprintCallable)
+	//void GrabWeapon();
 
 	public:
 	void EquipWeapon(ASandboxWeaponBase* Weapon);
+
+	UFUNCTION(BlueprintCallable)
+	void ANAttachWeapon();
+
+	UFUNCTION(BlueprintCallable)
+	void ANHolsterWeapon();
 };

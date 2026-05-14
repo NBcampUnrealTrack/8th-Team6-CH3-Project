@@ -80,8 +80,8 @@ struct FCharacterAnimMontages
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
-	UAnimMontage* Reload;
+	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
+	//UAnimMontage* Reload;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	UAnimMontage* Fire;
@@ -91,7 +91,7 @@ struct FCharacterAnimMontages
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
 	UAnimMontage* Holster;
 
-	FCharacterAnimMontages() : Reload(nullptr), Fire(nullptr), Equip(nullptr), Holster(nullptr){}
+	FCharacterAnimMontages() : /*Reload(nullptr),*/ Fire(nullptr), Equip(nullptr), Holster(nullptr){}
 };
 
 UENUM(BlueprintType)

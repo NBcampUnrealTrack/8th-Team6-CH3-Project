@@ -33,6 +33,8 @@ AWeaponBase::AWeaponBase()
 void AWeaponBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	CurrentAmmo = MaxAmmo;
 }
 
 void AWeaponBase::Fire()
@@ -68,7 +70,7 @@ void AWeaponBase::Interact(ACharacter* Character)
 			if (SandboxWeapon)
 			{
 				Player->EquipWeapon(SandboxWeapon);
-				SetActorEnableCollision(false);
+				//SetActorEnableCollision(false);
 			}
 		}
 	}
@@ -91,7 +93,7 @@ void AWeaponBase::Use(ACharacter* Character)
 
 	if (Weapon)
 	{
-		Weapon->SetActorEnableCollision(false);
+		//Weapon->SetActorEnableCollision(false);
 		ASandboxWeaponBase* SandboxWeapon = Cast<ASandboxWeaponBase>(Weapon);
 		if (SandboxWeapon)
 		{

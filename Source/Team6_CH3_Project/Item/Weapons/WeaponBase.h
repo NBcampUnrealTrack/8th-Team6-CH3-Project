@@ -11,7 +11,7 @@ UCLASS()
 class TEAM6_CH3_PROJECT_API AWeaponBase : public AItemBase
 {
 	GENERATED_BODY()
-	
+
 public:
 	AWeaponBase();
 
@@ -37,9 +37,9 @@ public:
 	TSubclassOf<UCameraShakeBase> CameraShakeClass;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector EquipOffset;
+	FTransform EquipOffset;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	FVector HolsterOffset;
+	FTransform HolsterOffset;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
 	class UNiagaraSystem* MuzzleEffect;
@@ -50,10 +50,10 @@ public:
 
 
 	UFUNCTION(BlueprintCallable)
-	float GetRoF() const
-	{
-		return RoF;
-	}
+	float GetRoF() const { return RoF; }
+
+	bool GetCanFire() const { return CanFire; }
+
 
 	virtual void Interact(ACharacter* Character) override;
 	virtual void Use(ACharacter* Character) override;
