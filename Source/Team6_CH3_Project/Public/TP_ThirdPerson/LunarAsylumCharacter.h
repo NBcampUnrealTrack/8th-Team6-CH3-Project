@@ -181,4 +181,6 @@ protected:
 
 	UFUNCTION(BlueprintCallable)
 	void ANHolsterWeapon();
+
+	void InternalAttachWeapon(ASandboxWeaponBase* Weapon, FName SocketName, const FTransform& Offset);
 };

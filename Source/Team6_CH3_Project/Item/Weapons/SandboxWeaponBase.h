@@ -72,8 +72,8 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void UpdateAmmo();
 
-	//UFUNCTION(BlueprintCallable)
-	//void ApplyRecoil();
+	UFUNCTION(BlueprintCallable)
+	void ApplyRecoil();
 
 	//UFUNCTION()
 	//void FinishReload();
@@ -82,4 +82,19 @@ protected:
 	bool bIsReloading = false;
 
 	FTimerHandle TimerReloadDelay;
+
+	/** 라인트레이스 시작 지점 보정 오프셋 값*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	float ViewStartOffset = 175.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	float PitchRecoilMin = 0.15f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	float PitchRecoilMax = 0.25f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	float YawRecoilMin = -0.1f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
+	float YawRecoilMax = 0.1f;
 };

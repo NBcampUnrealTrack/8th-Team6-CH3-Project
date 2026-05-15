@@ -216,25 +216,79 @@ void ALunarAsylumCharacter::Interact()
 		ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(Actor);
 		if (Weapon)
 		{
-			Weapon->Interact(this);
-			break;
-		}
-		AItemBase* Item = Cast<AItemBase>(Actor);
-		if (Item)
-		{
-			if (!InventoryComponent->Slots[0].bIsEmpty)
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = this;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			ASandboxWeaponBase* NewWeapon = GetWorld()->SpawnActor<ASandboxWeaponBase>(Weapon->GetClass(), GetActorLocation(), GetActorRotation(), SpawnParams);
+
+			if (NewWeapon)
 			{
-				InventoryComponent->RemoveItem(0, 1);
+				NewWeapon->SetActorEnableCollision(false);
+
+				if (NewWeapon->SlotType == EItemSlotType::MainWeapon && !PrimaryWeapon)
+				{
+					PrimaryWeapon = NewWeapon;
+					InternalAttachWeapon(PrimaryWeapon, TEXT("PrimaryWeaponSocket"), PrimaryWeapon->HolsterOffset);
+					UE_LOG(LogTemp, Log, TEXT("주무기 부착"));
+				}
+				else if (NewWeapon->SlotType == EItemSlotType::SubWeapon && !SecondaryWeapon)
+				{
+					SecondaryWeapon = NewWeapon;
+					InternalAttachWeapon(SecondaryWeapon, TEXT("SecondaryWeaponSocket"), SecondaryWeapon->HolsterOffset);
+					UE_LOG(LogTemp, Log, TEXT("부무기 부착"));
+				}
+				else
+				{
+					InventoryComponent->AddItem(NewWeapon->GetClass(), 1);
+					NewWeapon->Destroy();
+				}
 			}
-			InventoryComponent->AddItem(Item->GetClass(), 1);
-			Item->Destroy();
+
+			Weapon->Destroy();
 			break;
 		}
 	}
+
+
+	//ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(Actor);
+	//if (Weapon)
+	//{
+	//	Weapon->Interact(this);
+	//	break;
+	//}
+	//AItemBase* Item = Cast<AItemBase>(Actor);
+	//if (Item)
+	//{
+	//	if (!InventoryComponent->Slots[0].bIsEmpty)
+	//	{
+	//		InventoryComponent->RemoveItem(0, 1);
+	//	}
+	//	InventoryComponent->AddItem(Item->GetClass(), 1);
+	//	Item->Destroy();
+	//	break;
+	//}
+//}
+
+
 }
 
 void ALunarAsylumCharacter::UseItem()
 {
+	//if (!InventoryComponent) return;
+
+	//if (SelectedSlotIndex < 0 || SelectedSlotIndex >= InventoryComponent->Slots.Num()) return;
+
+	//FInventorySlot& Slot = InventoryComponent->Slots[SelectedSlotIndex];
+	//if (Slot.bIsEmpty || !Slot.ItemClass) return;
+
+	//AItemBase* CDO = Cast<AItemBase>(Slot.ItemClass->GetDefaultObject());
+	//if (!CDO) return;
+
+	//CDO->Use(this);
+
+	//InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
+
 	if (!InventoryComponent) return;
 
 	if (SelectedSlotIndex < 0 || SelectedSlotIndex >= InventoryComponent->Slots.Num()) return;
@@ -242,12 +296,32 @@ void ALunarAsylumCharacter::UseItem()
 	FInventorySlot& Slot = InventoryComponent->Slots[SelectedSlotIndex];
 	if (Slot.bIsEmpty || !Slot.ItemClass) return;
 
-	AItemBase* CDO = Cast<AItemBase>(Slot.ItemClass->GetDefaultObject());
-	if (!CDO) return;
+	AItemBase* ItemCDO = Slot.ItemClass->GetDefaultObject<AItemBase>();
 
-	CDO->Use(this);
+	if (ItemCDO->ItemType == EItemType::Weapon)
+	{
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.Owner = this;
+		SpawnParams.Instigator = GetInstigator();
+		ASandboxWeaponBase* NewWeapon = GetWorld()->SpawnActor<ASandboxWeaponBase>(
+			Slot.ItemClass,
+			GetActorLocation(),
+			GetActorRotation(),
+			SpawnParams
+		);
 
-	InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
+		if (NewWeapon)
+		{
+			EquipWeapon(NewWeapon);
+			InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
+		}
+	}
+	else
+	{
+		ItemCDO->Use(this);
+		InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
+	}
+
 }
 
 void ALunarAsylumCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
@@ -298,8 +372,6 @@ void ALunarAsylumCharacter::ANHolsterWeapon()
 {
 	if (CurrentWeapon && GetMesh())
 	{
-		//
-		// CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("PrimaryWeaponSocket"));
 		if (CurrentWeapon->WeaponType == EWeaponType::Shotgun || CurrentWeapon->WeaponType == EWeaponType::Rifle)
 		{
 			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("PrimaryWeaponSocket"));
@@ -312,6 +384,16 @@ void ALunarAsylumCharacter::ANHolsterWeapon()
 		CurrentWeapon->Mesh->SetRelativeLocation(CurrentWeapon->HolsterOffset.GetLocation());
 		CurrentWeapon->Mesh->SetRelativeRotation(CurrentWeapon->HolsterOffset.GetRotation());
 	}
+}
+
+void ALunarAsylumCharacter::InternalAttachWeapon(ASandboxWeaponBase* Weapon, FName SocketName, const FTransform& Offset)
+{
+	if (!Weapon || !Weapon->Mesh || !GetMesh()) return;
+
+	Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, SocketName);
+
+	Weapon->Mesh->SetRelativeLocation(Offset.GetLocation());
+	Weapon->Mesh->SetRelativeRotation(Offset.GetRotation());
 }
 
 void ALunarAsylumCharacter::PrimaryEquipToggle()

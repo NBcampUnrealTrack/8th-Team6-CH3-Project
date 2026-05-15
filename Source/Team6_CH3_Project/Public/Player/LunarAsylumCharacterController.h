@@ -18,7 +18,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Widget")
 	TSubclassOf<UUserWidget> HUDWidgetClass = nullptr;
 	class UCombatHUDWidget* HUDWidget = nullptr;
-	//class UUserWidget* HUDWidget = nullptr;
+
 protected:
 	virtual void BeginPlay() override;
 
