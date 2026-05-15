@@ -183,4 +183,13 @@ protected:
 	void ANHolsterWeapon();
 
 	void InternalAttachWeapon(ASandboxWeaponBase* Weapon, FName SocketName, const FTransform& Offset);
+
+	// 무기위치,회전 보간 관련 변수
+	bool bIsInterpWeaponTransform = false;
+	FTransform TargetWeaponTransform;
+
+	UPROPERTY(EditAnywhere)
+	float WeaponInterpSpeed = 10.0f; // 보간 속도
+
+	void UpdateWeaponTransform(float DeltaTime);
 };

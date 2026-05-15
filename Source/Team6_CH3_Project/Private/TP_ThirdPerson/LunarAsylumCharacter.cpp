@@ -53,6 +53,8 @@ void ALunarAsylumCharacter::Tick(float DeltaTime)
 
 	UpdateAimZoom(DeltaTime);
 
+	UpdateWeaponTransform(DeltaTime);
+
 	// 캐릭터 상태 출력 확인용//
 	FString ActionStateString = UEnum::GetValueAsString(CurrentActionState);
 	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, ActionStateString);
@@ -359,30 +361,61 @@ void ALunarAsylumCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 
 void ALunarAsylumCharacter::ANAttachWeapon()
 {
+	//if (CurrentWeapon && GetMesh())
+	//{
+	//	CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
+
+	//	CurrentWeapon->Mesh->SetRelativeLocation(CurrentWeapon->EquipOffset.GetLocation());
+	//	CurrentWeapon->Mesh->SetRelativeRotation(CurrentWeapon->EquipOffset.GetRotation());
+	//}
+
 	if (CurrentWeapon && GetMesh())
 	{
-		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
+		//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("WeaponSocket"));
 
-		CurrentWeapon->Mesh->SetRelativeLocation(CurrentWeapon->EquipOffset.GetLocation());
-		CurrentWeapon->Mesh->SetRelativeRotation(CurrentWeapon->EquipOffset.GetRotation());
+		//TargetWeaponTransform = CurrentWeapon->EquipOffset;
+		//bIsInterpWeaponTransform = true;
+
+		FTransform WorldTransform = CurrentWeapon->Mesh->GetComponentTransform();
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("WeaponSocket"));
+		CurrentWeapon->Mesh->SetWorldTransform(WorldTransform);
+		TargetWeaponTransform = CurrentWeapon->EquipOffset;
+		bIsInterpWeaponTransform = true;
 	}
+
 }
 
 void ALunarAsylumCharacter::ANHolsterWeapon()
 {
+	//if (CurrentWeapon && GetMesh())
+	//{
+	//	if (CurrentWeapon->WeaponType == EWeaponType::Shotgun || CurrentWeapon->WeaponType == EWeaponType::Rifle)
+	//	{
+	//		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("PrimaryWeaponSocket"));
+	//	}
+	//	else
+	//	{
+	//		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("SecondaryWeaponSocket"));
+	//	}
+
+	//	CurrentWeapon->Mesh->SetRelativeLocation(CurrentWeapon->HolsterOffset.GetLocation());
+	//	CurrentWeapon->Mesh->SetRelativeRotation(CurrentWeapon->HolsterOffset.GetRotation());
+	//}
+
 	if (CurrentWeapon && GetMesh())
 	{
-		if (CurrentWeapon->WeaponType == EWeaponType::Shotgun || CurrentWeapon->WeaponType == EWeaponType::Rifle)
-		{
-			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("PrimaryWeaponSocket"));
-		}
-		else
-		{
-			CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("SecondaryWeaponSocket"));
-		}
+		FName TargetSocket = (CurrentWeapon->WeaponType == EWeaponType::Pistol) ? TEXT("SecondaryWeaponSocket") : TEXT("PrimaryWeaponSocket");
 
-		CurrentWeapon->Mesh->SetRelativeLocation(CurrentWeapon->HolsterOffset.GetLocation());
-		CurrentWeapon->Mesh->SetRelativeRotation(CurrentWeapon->HolsterOffset.GetRotation());
+		//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TargetSocket);
+
+		//TargetWeaponTransform = CurrentWeapon->HolsterOffset;
+		//bIsInterpWeaponTransform = true;
+
+		FTransform WorldTransform = CurrentWeapon->Mesh->GetComponentTransform();
+		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TargetSocket);
+		CurrentWeapon->Mesh->SetWorldTransform(WorldTransform);
+		TargetWeaponTransform = CurrentWeapon->HolsterOffset;
+		bIsInterpWeaponTransform = true;
 	}
 }
 
@@ -394,6 +427,33 @@ void ALunarAsylumCharacter::InternalAttachWeapon(ASandboxWeaponBase* Weapon, FNa
 
 	Weapon->Mesh->SetRelativeLocation(Offset.GetLocation());
 	Weapon->Mesh->SetRelativeRotation(Offset.GetRotation());
+}
+
+void ALunarAsylumCharacter::UpdateWeaponTransform(float DeltaTime)
+{
+	if (!bIsInterpWeaponTransform || !CurrentWeapon || !CurrentWeapon->Mesh)
+	{
+		return;
+	}
+
+	FVector CurrentLoc = CurrentWeapon->Mesh->GetRelativeLocation();
+	FRotator CurrentRot = CurrentWeapon->Mesh->GetRelativeRotation();
+
+	FVector TargetLoc = TargetWeaponTransform.GetLocation();
+	FRotator TargetRot = TargetWeaponTransform.GetRotation().Rotator();
+
+	FVector NewLoc = FMath::VInterpTo(CurrentLoc, TargetLoc, DeltaTime, WeaponInterpSpeed);
+	FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, WeaponInterpSpeed);
+
+	CurrentWeapon->Mesh->SetRelativeLocation(NewLoc);
+	CurrentWeapon->Mesh->SetRelativeRotation(NewRot);
+
+	if (NewLoc.Equals(TargetLoc, 0.1f) && NewRot.Equals(TargetRot, 0.1f))
+	{
+		bIsInterpWeaponTransform = false;
+		CurrentWeapon->Mesh->SetRelativeLocation(TargetLoc);
+		CurrentWeapon->Mesh->SetRelativeRotation(TargetRot);
+	}
 }
 
 void ALunarAsylumCharacter::PrimaryEquipToggle()
