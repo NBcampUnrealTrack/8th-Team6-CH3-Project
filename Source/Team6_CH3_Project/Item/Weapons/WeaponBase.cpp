@@ -69,7 +69,7 @@ void AWeaponBase::Interact(ACharacter* Character)
 			ASandboxWeaponBase* SandboxWeapon = Cast<ASandboxWeaponBase>(this);
 			if (SandboxWeapon)
 			{
-				Player->EquipWeapon(SandboxWeapon);
+				//Player->EquipWeapon(SandboxWeapon);
 				//SetActorEnableCollision(false);
 			}
 		}

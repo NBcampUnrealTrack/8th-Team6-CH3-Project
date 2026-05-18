@@ -158,7 +158,7 @@ public:
 	//-----------------------------------------------------------------------------
 	void SetActionState(EActionState NewState);
 	void SetEquipState(EEquipState NewState);
-	void EquipWeapon(ASandboxWeaponBase* Weapon);
+	//void EquipWeapon(ASandboxWeaponBase* Weapon);
 
 	UFUNCTION(BlueprintCallable, Category = "Player|Combat")
 	void ANAttachWeapon();
@@ -220,7 +220,7 @@ protected:
 	// INTERACTION & DAMAGE METHODS
 	//-----------------------------------------------------------------------------
 	void Interact();
-	void UseItem();
+	//void UseItem();
 	void UpdateInteractionCheck();
 
 	UFUNCTION(BlueprintCallable, Category = "Player|Damage")

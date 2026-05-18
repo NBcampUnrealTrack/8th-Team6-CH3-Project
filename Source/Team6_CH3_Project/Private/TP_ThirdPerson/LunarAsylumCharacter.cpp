@@ -93,7 +93,7 @@ void ALunarAsylumCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 
 			EnhancedInputComponent->BindAction(InputConfigData->SecondaryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::SecondaryEquipToggle);
 
-			EnhancedInputComponent->BindAction(InputConfigData->UseItemAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::UseItem);
+			//EnhancedInputComponent->BindAction(InputConfigData->UseItemAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::UseItem);
 
 			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::Interact);
 		}
