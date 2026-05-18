@@ -14,7 +14,6 @@ class UInventoryComponent;
 class UAnimMontage;
 class ASandboxWeaponBase;
 class AItemBase;
-class USpotLightComponent;
 
 //-----------------------------------------------------------------------------
 // DELEGATES
@@ -47,9 +46,6 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Components")
 	UInventoryComponent* InventoryComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Components")
-	USpotLightComponent* Torch;
 
 	//-----------------------------------------------------------------------------
 	// INPUT CONFIG
@@ -194,7 +190,6 @@ protected:
 	void Look(const struct FInputActionValue& Value);
 	void StartSprint();
 	void StopSprint();
-	void ToggleTorch();
 
 	//-----------------------------------------------------------------------------
 	// COMBAT & AIM METHODS
@@ -219,10 +214,7 @@ protected:
 
 	void PrimaryEquipToggle();
 	void SecondaryEquipToggle();
-
-	void DropPrimaryWeapon();
-	void DropSecondaryWeapon();
-	void DropWeapon(EEquipState EquipState);
+	void Reload();
 
 	//-----------------------------------------------------------------------------
 	// INTERACTION & DAMAGE METHODS
