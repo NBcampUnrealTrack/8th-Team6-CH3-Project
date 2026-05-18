@@ -7,6 +7,7 @@
 #include "../Item/Weapons/SandboxWeaponBase.h"
 #include "Camera/CameraComponent.h"
 #include "EnhancedInputComponent.h"
+#include "Components\SpotLightComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Player\InputConfigData.h"
 #include "EnhancedInputSubsystems.h"
@@ -34,6 +35,26 @@ ALunarAsylumCharacter::ALunarAsylumCharacter()
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(CameraArm);
 
+	Torch = CreateDefaultSubobject<USpotLightComponent>(TEXT("Torch"));
+	Torch->SetupAttachment(Camera);
+	Torch->SetRelativeLocation(FVector(350.f, 0.f, 0.f));
+
+	Torch->SetIntensityUnits(ELightUnits::Lumens);
+
+	Torch->Intensity = 2500.0f;
+	Torch->AttenuationRadius = 2000.0f;
+
+	Torch->InnerConeAngle = 10.0f;
+	Torch->OuterConeAngle = 25.0f;
+
+	CurrentAimSensitivity = AimSettings.NormalSensitivity;
+
+	CameraArm->TargetArmLength = AimSettings.DefaultArmLength;
+
+	CameraArm->SocketOffset = AimSettings.DefaultArmSocketOffset;
+
+	//Torch->SetSourceRadius(0.5f);
+
 	PlayerStatComponent = CreateDefaultSubobject<UPlayerStatComponent>(TEXT("StatComponent"));
 
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
@@ -43,8 +64,10 @@ void ALunarAsylumCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	CurrentAimSensitivity = AimSettings.NormalSensitivity;
+
 	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.WalkSpeed;
+
+	Torch->SetVisibility(false);
 
 	PlayerStatComponent->OnDeath.AddDynamic(this, &ALunarAsylumCharacter::OnDeath);
 }
@@ -93,9 +116,13 @@ void ALunarAsylumCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 
 			EnhancedInputComponent->BindAction(InputConfigData->SecondaryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::SecondaryEquipToggle);
 
-			//EnhancedInputComponent->BindAction(InputConfigData->UseItemAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::UseItem);
+			EnhancedInputComponent->BindAction(InputConfigData->TorchAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::ToggleTorch);
 
 			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::Interact);
+
+			EnhancedInputComponent->BindAction(InputConfigData->PrimaryDropAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::DropPrimaryWeapon);
+
+			EnhancedInputComponent->BindAction(InputConfigData->SecondaryDropAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::DropSecondaryWeapon);
 		}
 	}
 }
@@ -224,44 +251,85 @@ void ALunarAsylumCharacter::StopSprint()
 	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.WalkSpeed;
 }
 
+void ALunarAsylumCharacter::ToggleTorch()
+{
+	if (Torch)
+	{
+		Torch->ToggleVisibility();
+	}
+}
+
 void ALunarAsylumCharacter::Interact()
 {
-	ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(TargetItem);
-	if (Weapon)
+	if (!TargetItem) return;
+
+	ASandboxWeaponBase* GroundWeapon = Cast<ASandboxWeaponBase>(TargetItem);
+	if (GroundWeapon)
 	{
-		OnItemAcquired.Broadcast(Weapon->ItemName.ToString());
+		bool bHasPrimarySameType = PrimaryWeapon && (PrimaryWeapon->GetClass() == GroundWeapon->GetClass());
+		bool bHasSecondarySameType = SecondaryWeapon && (SecondaryWeapon->GetClass() == GroundWeapon->GetClass());
 
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		ASandboxWeaponBase* NewWeapon = GetWorld()->SpawnActor<ASandboxWeaponBase>(Weapon->GetClass(), GetActorLocation(), GetActorRotation(), SpawnParams);
-
-		if (NewWeapon)
+		if (bHasPrimarySameType || bHasSecondarySameType)
 		{
-			NewWeapon->SetActorEnableCollision(false);
+			ASandboxWeaponBase* MyOwnedWeapon = bHasPrimarySameType ? PrimaryWeapon : SecondaryWeapon;
 
-			if (NewWeapon->SlotType == EItemSlotType::MainWeapon && !PrimaryWeapon)
+			if (MyOwnedWeapon)
 			{
-				PrimaryWeapon = NewWeapon;
-				InternalAttachWeapon(PrimaryWeapon, TEXT("PrimaryWeaponSocket"), PrimaryWeapon->HolsterOffset);
-				//UE_LOG(LogTemp, Log, TEXT("주무기 부착"));
+				MyOwnedWeapon->MaxAmmoAdd();
+
+				FString AmmoMessage = FString::Printf(TEXT("%s 탄약 충전!"), *GroundWeapon->ItemName.ToString());
+				OnItemAcquired.Broadcast(AmmoMessage);
+
+				TargetItem->Destroy();
+				TargetItem = nullptr;
+				OnTargetItemChanged.Broadcast(TEXT(""));
 			}
-			else if (NewWeapon->SlotType == EItemSlotType::SubWeapon && !SecondaryWeapon)
+			return;
+		}
+
+		bool bCanEquipAsMain = (GroundWeapon->SlotType == EItemSlotType::MainWeapon && !PrimaryWeapon);
+		bool bCanEquipAsSub = (GroundWeapon->SlotType == EItemSlotType::SubWeapon && !SecondaryWeapon);
+
+		if (bCanEquipAsMain || bCanEquipAsSub)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = this;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			ASandboxWeaponBase* NewWeapon = GetWorld()->SpawnActor<ASandboxWeaponBase>(
+				GroundWeapon->GetClass(),
+				GetActorLocation(),
+				GetActorRotation(),
+				SpawnParams
+			);
+
+			if (NewWeapon)
 			{
-				SecondaryWeapon = NewWeapon;
-				InternalAttachWeapon(SecondaryWeapon, TEXT("SecondaryWeaponSocket"), SecondaryWeapon->HolsterOffset);
-				//UE_LOG(LogTemp, Log, TEXT("부무기 부착"));
-			}
-			else
-			{
-				InventoryComponent->AddItem(NewWeapon->GetClass(), 1);
-				NewWeapon->Destroy();
+				NewWeapon->SetActorEnableCollision(false);
+				FString AcquiredMessage = FString::Printf(TEXT("%s 장착 완료"), *NewWeapon->ItemName.ToString());
+				OnItemAcquired.Broadcast(AcquiredMessage);
+
+				if (NewWeapon->SlotType == EItemSlotType::MainWeapon)
+				{
+					PrimaryWeapon = NewWeapon;
+					InternalAttachWeapon(PrimaryWeapon, TEXT("PrimaryWeaponSocket"), PrimaryWeapon->HolsterOffset);
+				}
+				else
+				{
+					SecondaryWeapon = NewWeapon;
+					InternalAttachWeapon(SecondaryWeapon, TEXT("SecondaryWeaponSocket"), SecondaryWeapon->HolsterOffset);
+				}
+
+				GroundWeapon->Destroy();
+				TargetItem = nullptr;
+				OnTargetItemChanged.Broadcast(TEXT(""));
 			}
 		}
-		Weapon->Destroy();
+		else
+		{
+			OnItemAcquired.Broadcast(TEXT("해당 무기 슬롯이 가득 찼습니다!"));
+		}
 	}
-
 }
 
 void ALunarAsylumCharacter::ANAttachWeapon()
@@ -486,6 +554,46 @@ void ALunarAsylumCharacter::SecondaryEquipToggle()
 			bIsIKAlpha = false;
 		}
 	}
+}
+
+void ALunarAsylumCharacter::DropPrimaryWeapon()
+{
+	if (CurrentEquipState != EEquipState::Primary)
+	{
+		DropWeapon(EEquipState::Primary);
+	}
+}
+
+void ALunarAsylumCharacter::DropSecondaryWeapon()
+{
+	if (CurrentEquipState != EEquipState::Secondary)
+	{
+		DropWeapon(EEquipState::Secondary);
+	}
+}
+
+void ALunarAsylumCharacter::DropWeapon(EEquipState EquipState)
+{
+	ASandboxWeaponBase* WeaponToDrop = nullptr;
+
+	if (EquipState == EEquipState::Primary)
+	{
+		WeaponToDrop = PrimaryWeapon;
+		PrimaryWeapon = nullptr;
+	}
+	else if (EquipState == EEquipState::Secondary)
+	{
+		WeaponToDrop = SecondaryWeapon;
+		SecondaryWeapon = nullptr;
+	}
+
+	if (!WeaponToDrop) return;
+
+	WeaponToDrop->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+	WeaponToDrop->SetActorEnableCollision(true);
+	WeaponToDrop->SetOwner(nullptr);
+
+	OnItemAcquired.Broadcast(FString::Printf(TEXT("%s 버림"), *WeaponToDrop->ItemName.ToString()));
 }
 
 void ALunarAsylumCharacter::HitReaction()
