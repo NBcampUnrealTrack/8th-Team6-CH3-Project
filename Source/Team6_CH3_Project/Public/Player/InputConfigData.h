@@ -39,17 +39,25 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Input")
 	class UInputAction* FireAction;
 
-	// 주무기
+	// 주무기 장착/배치
 	UPROPERTY(EditAnywhere, Category = "Input")
 	class UInputAction* PrimaryAction;
 
-	// 보조무기
+	// 보조무기 장착/배치
 	UPROPERTY(EditAnywhere, Category = "Input")
 	class UInputAction* SecondaryAction;
 
-	// 아이템 사용
+	// 주무기 드랍
 	UPROPERTY(EditAnywhere, Category = "Input")
-	class UInputAction* UseItemAction;
+	class UInputAction* PrimaryDropAction;
+
+	// 보조무기 드랍
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* SecondaryDropAction;
+
+	// 손전등
+	UPROPERTY(EditAnywhere, Category = "Input")
+	class UInputAction* TorchAction;
 
 	// 상호작용
 	UPROPERTY(EditAnywhere, Category = "Input")

@@ -58,6 +58,7 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool CanAttack();
 
+	void MaxAmmoAdd();
 protected:
 
 	UFUNCTION(BlueprintCallable)
@@ -77,6 +78,7 @@ protected:
 
 	//UFUNCTION()
 	//void FinishReload();
+
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool bIsReloading = false;
