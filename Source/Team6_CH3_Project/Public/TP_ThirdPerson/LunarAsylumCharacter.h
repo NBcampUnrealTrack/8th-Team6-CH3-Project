@@ -6,8 +6,13 @@
 #include "GameFramework/Character.h"
 #include "Player\WeaponTestActor.h"
 #include "ProjectTypes.h"
+#include "../Item/ItemBase.h"
 #include "../Item/Weapons/SandboxWeaponBase.h"
 #include "LunarAsylumCharacter.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTargetItemChangedSignature, const FString&, ItemName);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemAcquiredSignature, const FString&, ItemAcquiredName);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEquipStateChanged, EEquipState, EquipState);
 
@@ -63,18 +68,6 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
 	EActionState CurrentActionState;
 
-
-	//// 합치기 테스트 
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	//TObjectPtr<ASandboxWeaponBase> EquippedWeapon;
-
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	//TObjectPtr<ASandboxWeaponBase> MainWeaponSlot;
-
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	//TObjectPtr<ASandboxWeaponBase> SubWeaponSlot;
-
-
 	// 주무기
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	ASandboxWeaponBase* PrimaryWeapon;
@@ -106,6 +99,10 @@ public:
 	int32 SelectedSlotIndex = -1;
 
 	FTimerHandle AutoFireTimer;
+
+	FOnTargetItemChangedSignature OnTargetItemChanged;
+
+	FOnItemAcquiredSignature OnItemAcquired;
 
 	// 이동
 	void Move(const struct FInputActionValue& Value);
@@ -169,10 +166,6 @@ protected:
 	UFUNCTION()
 	void OnDeath();
 
-
-	//UFUNCTION(BlueprintCallable)
-	//void GrabWeapon();
-
 	public:
 	void EquipWeapon(ASandboxWeaponBase* Weapon);
 
@@ -191,5 +184,32 @@ protected:
 	UPROPERTY(EditAnywhere)
 	float WeaponInterpSpeed = 10.0f; // 보간 속도
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "IK")
+	float LeftHandIKAlpha = 0.f;
+	float TargetIKAlpha = 0.f;
+	UPROPERTY(EditAnywhere)
+	float IKInterpSpeed = 10.0f; // 보간 속도
+	bool bIsIKAlpha = false;
+
 	void UpdateWeaponTransform(float DeltaTime);
+
+	void UpdateWeaponIKTransform();
+
+	void UpdateWeaponIKWeight(float DeltaTime);
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "IK")
+	FTransform WeaponEffector;
+
+	void OnEquipMontageEnd(UAnimMontage* Montage, bool bInterrupted);
+
+	void UpdatePlayerStateDebugMessage();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Interaction")
+	AItemBase* TargetItem = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	float InteractionDistance = 1000.f;
+
+	void UpdateInteractionCheck();
+
 };

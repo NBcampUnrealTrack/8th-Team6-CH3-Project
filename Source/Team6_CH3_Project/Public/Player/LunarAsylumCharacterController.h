@@ -19,6 +19,10 @@ public:
 	TSubclassOf<UUserWidget> HUDWidgetClass = nullptr;
 	class UCombatHUDWidget* HUDWidget = nullptr;
 
+	UPROPERTY(EditAnywhere, Category = "Widget")
+	TSubclassOf<UUserWidget> InteractionWidgetClass = nullptr;
+	class UInteractionWidget* InteractionWidget = nullptr;
+
 protected:
 	virtual void BeginPlay() override;
 
