@@ -25,7 +25,6 @@ void UANS_SetActionState::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSeque
     {
         if (ALunarAsylumCharacter* LunarAsylumCharacter = Cast<ALunarAsylumCharacter>(MeshComp->GetOwner()))
         {
-           //LunarAsylumCharacter->RestorePreviousState();
             LunarAsylumCharacter->SetActionState(EActionState::Idle);
         }
     }

@@ -8,14 +8,10 @@ void UInteractionWidget::NativeConstruct()
 {
     Super::NativeConstruct();
 
-    if (APawn* OwningPawn = GetOwningPlayerPawn())
-    {
-        LunarAsylumCharacter = Cast<ALunarAsylumCharacter>(OwningPawn);
-    }
+    ALunarAsylumCharacter* LunarAsylumCharacter = LunarAsylumCharacter = Cast<ALunarAsylumCharacter>(GetOwningPlayerPawn());
 
     if (LunarAsylumCharacter)
     {
-        UE_LOG(LogTemp, Log, TEXT("LunarAsylumCharacter"));
         if (GuideText)
         {
             GuideText->SetVisibility(ESlateVisibility::Collapsed);
@@ -29,10 +25,6 @@ void UInteractionWidget::NativeConstruct()
         LunarAsylumCharacter->OnTargetItemChanged.AddDynamic(this, &UInteractionWidget::HandleTargetItemChanged);
         LunarAsylumCharacter->OnItemAcquired.AddDynamic(this, &UInteractionWidget::ShowAcquisitionMessage);
     }
-    else
-    {
-        UE_LOG(LogTemp, Log, TEXT("LunarAsylumCharacter is NULL"));
-    }
 }
 
 void UInteractionWidget::ShowGuide(const FString& ItemName)
@@ -42,8 +34,6 @@ void UInteractionWidget::ShowGuide(const FString& ItemName)
         GuideText->SetText(FText::FromString(FString::Printf(TEXT("[F] %s"), *ItemName)));
         GuideText->SetVisibility(ESlateVisibility::Visible);
     }
-
-    UE_LOG(LogTemp, Log, TEXT("ShowGuide"));
 }
 
 void UInteractionWidget::HideGuide()
@@ -69,7 +59,7 @@ void UInteractionWidget::ShowAcquisitionMessage(const FString& ItemName)
             AcquisitionTimerHandle,
             this,
             &UInteractionWidget::HideAcquisitionMessage,
-            2.5f,
+            ItemDisplayDuration,
             false
         );
     }

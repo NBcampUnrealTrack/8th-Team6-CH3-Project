@@ -15,15 +15,20 @@ class TEAM6_CH3_PROJECT_API ALunarAsylumCharacterController : public APlayerCont
 	GENERATED_BODY()
 	
 public:
-	UPROPERTY(EditAnywhere, Category = "Widget")
-	TSubclassOf<UUserWidget> HUDWidgetClass = nullptr;
-	class UCombatHUDWidget* HUDWidget = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = "Widget")
-	TSubclassOf<UUserWidget> InteractionWidgetClass = nullptr;
-	class UInteractionWidget* InteractionWidget = nullptr;
+	FORCEINLINE class UCombatHUDWidget* GetHUDWidget() const { return HUDWidget; }
+	FORCEINLINE class UInteractionWidget* GetInteractionWidget() const { return InteractionWidget; }
 
 protected:
 	virtual void BeginPlay() override;
 
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Widget|Class")
+	TSubclassOf<UUserWidget> HUDWidgetClass = nullptr;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Widget|Class")
+	TSubclassOf<UUserWidget> InteractionWidgetClass = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Widget|Instance")
+	class UCombatHUDWidget* HUDWidget = nullptr;
+	UPROPERTY(BlueprintReadOnly, Category = "Widget|Instance")
+	class UInteractionWidget* InteractionWidget = nullptr;
 };

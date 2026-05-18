@@ -15,9 +15,9 @@ class TEAM6_CH3_PROJECT_API UANS_SetEquipState : public UAnimNotifyState
 {
 	GENERATED_BODY()
 	
-public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EEquipState StateToSet;
-
+protected:
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration) override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	EEquipState StateToSet;
 };

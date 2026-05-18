@@ -3,6 +3,8 @@
 
 #include "TP_ThirdPerson/LunarAsylumCharacter.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "../Item/ItemBase.h"
+#include "../Item/Weapons/SandboxWeaponBase.h"
 #include "Camera/CameraComponent.h"
 #include "EnhancedInputComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -133,9 +135,6 @@ void ALunarAsylumCharacter::ApplyDamage(float Amount)
 void ALunarAsylumCharacter::AimSetting()
 {
 	GetCharacterMovement()->MaxWalkSpeed = bIsAiming ? MoveSettings.AimSpeed : MoveSettings.WalkSpeed;
-
-	Camera->SetFieldOfView(bIsAiming ? AimSettings.AimFOV : AimSettings.DefaultFOV);
-
 	CurrentAimSensitivity = bIsAiming ? AimSettings.AimSensitivity : AimSettings.NormalSensitivity;
 }
 
@@ -144,7 +143,9 @@ void ALunarAsylumCharacter::UpdateAimZoom(float DeltaTime)
 	float TargetArmLength = bIsAiming ? AimSettings.AimArmLength : AimSettings.DefaultArmLength;
 	FVector TargetOffset = bIsAiming ? AimSettings.AimArmSocketOffset : AimSettings.DefaultArmSocketOffset;
 	float InterpSpeed = bIsAiming ? AimSettings.AimInterpSpeed : AimSettings.DefaultInterpSpeed;
+	float TargetFOV = bIsAiming ? AimSettings.AimFOV : AimSettings.DefaultFOV;
 
+	Camera->SetFieldOfView(FMath::FInterpTo(Camera->FieldOfView, TargetFOV, DeltaTime, InterpSpeed));
 	CameraArm->TargetArmLength = FMath::FInterpTo(CameraArm->TargetArmLength, TargetArmLength, DeltaTime, InterpSpeed);
 	CameraArm->SocketOffset = FMath::VInterpTo(CameraArm->SocketOffset, TargetOffset, DeltaTime, InterpSpeed);
 }
@@ -152,6 +153,11 @@ void ALunarAsylumCharacter::UpdateAimZoom(float DeltaTime)
 void ALunarAsylumCharacter::StartAim()
 {
 	if (CurrentEquipState == EEquipState::Unarmed) return;
+
+	if (bIsSprint)
+	{
+		StopSprint();
+	}
 
 	bIsAiming = true;
 	AimSetting();
@@ -172,9 +178,13 @@ void ALunarAsylumCharacter::OnFire()
 		CurrentWeapon->Fire();
 
 		PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Fire);
-		if (APlayerCameraManager* CamManager = GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
+
+		if (APlayerController* PC = Cast<APlayerController>(GetController()))
 		{
-			CamManager->StartCameraShake(CurrentWeapon->CameraShakeClass, 1.0f);
+			if (APlayerCameraManager* CamManager = PC->PlayerCameraManager)
+			{
+				CamManager->StartCameraShake(CurrentWeapon->CameraShakeClass, 1.0f);
+			}
 		}
 
 		if (CurrentWeapon->MuzzleEffect)
@@ -186,7 +196,9 @@ void ALunarAsylumCharacter::OnFire()
 
 void ALunarAsylumCharacter::StartFire()
 {
-	if (CurrentWeapon)
+	if (!CurrentWeapon || CurrentEquipState == EEquipState::Unarmed) return;
+
+	if (CurrentActionState == EActionState::Idle)
 	{
 		GetWorldTimerManager().SetTimer(AutoFireTimer, this, &ALunarAsylumCharacter::OnFire, CurrentWeapon->GetRoF(), true);
 		OnFire();
@@ -200,6 +212,8 @@ void ALunarAsylumCharacter::StopFire()
 
 void ALunarAsylumCharacter::StartSprint()
 {
+	if (bIsAiming || CurrentActionState == EActionState::Firing) return;
+
 	bIsSprint = true;
 	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.SprintSpeed;
 }
@@ -212,153 +226,42 @@ void ALunarAsylumCharacter::StopSprint()
 
 void ALunarAsylumCharacter::Interact()
 {
-	//TArray<AActor*> OverlappingActors;
-	//GetOverlappingActors(OverlappingActors, AItemBase::StaticClass());
-
-	//for (AActor* Actor : OverlappingActors)
-	//{
-		ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(TargetItem);
-		if (Weapon)
-		{
-			FActorSpawnParameters SpawnParams;
-			SpawnParams.Owner = this;
-			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-			ASandboxWeaponBase* NewWeapon = GetWorld()->SpawnActor<ASandboxWeaponBase>(Weapon->GetClass(), GetActorLocation(), GetActorRotation(), SpawnParams);
-
-			if (NewWeapon)
-			{
-				NewWeapon->SetActorEnableCollision(false);
-
-				if (NewWeapon->SlotType == EItemSlotType::MainWeapon && !PrimaryWeapon)
-				{
-					PrimaryWeapon = NewWeapon;
-					InternalAttachWeapon(PrimaryWeapon, TEXT("PrimaryWeaponSocket"), PrimaryWeapon->HolsterOffset);
-					UE_LOG(LogTemp, Log, TEXT("주무기 부착"));
-				}
-				else if (NewWeapon->SlotType == EItemSlotType::SubWeapon && !SecondaryWeapon)
-				{
-					SecondaryWeapon = NewWeapon;
-					InternalAttachWeapon(SecondaryWeapon, TEXT("SecondaryWeaponSocket"), SecondaryWeapon->HolsterOffset);
-					UE_LOG(LogTemp, Log, TEXT("부무기 부착"));
-				}
-				else
-				{
-					InventoryComponent->AddItem(NewWeapon->GetClass(), 1);
-					NewWeapon->Destroy();
-				}
-			}
-
-			Weapon->Destroy();
-			//break;
-		//}
-	}
-
-
-	//ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(Actor);
-	//if (Weapon)
-	//{
-	//	Weapon->Interact(this);
-	//	break;
-	//}
-	//AItemBase* Item = Cast<AItemBase>(Actor);
-	//if (Item)
-	//{
-	//	if (!InventoryComponent->Slots[0].bIsEmpty)
-	//	{
-	//		InventoryComponent->RemoveItem(0, 1);
-	//	}
-	//	InventoryComponent->AddItem(Item->GetClass(), 1);
-	//	Item->Destroy();
-	//	break;
-	//}
-//}
-
-
-}
-
-void ALunarAsylumCharacter::UseItem()
-{
-	//if (!InventoryComponent) return;
-
-	//if (SelectedSlotIndex < 0 || SelectedSlotIndex >= InventoryComponent->Slots.Num()) return;
-
-	//FInventorySlot& Slot = InventoryComponent->Slots[SelectedSlotIndex];
-	//if (Slot.bIsEmpty || !Slot.ItemClass) return;
-
-	//AItemBase* CDO = Cast<AItemBase>(Slot.ItemClass->GetDefaultObject());
-	//if (!CDO) return;
-
-	//CDO->Use(this);
-
-	//InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
-
-	if (!InventoryComponent) return;
-
-	if (SelectedSlotIndex < 0 || SelectedSlotIndex >= InventoryComponent->Slots.Num()) return;
-
-	FInventorySlot& Slot = InventoryComponent->Slots[SelectedSlotIndex];
-	if (Slot.bIsEmpty || !Slot.ItemClass) return;
-
-	AItemBase* ItemCDO = Slot.ItemClass->GetDefaultObject<AItemBase>();
-
-	if (ItemCDO->ItemType == EItemType::Weapon)
+	ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(TargetItem);
+	if (Weapon)
 	{
+		OnItemAcquired.Broadcast(Weapon->ItemName.ToString());
+
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Owner = this;
-		SpawnParams.Instigator = GetInstigator();
-		ASandboxWeaponBase* NewWeapon = GetWorld()->SpawnActor<ASandboxWeaponBase>(
-			Slot.ItemClass,
-			GetActorLocation(),
-			GetActorRotation(),
-			SpawnParams
-		);
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		ASandboxWeaponBase* NewWeapon = GetWorld()->SpawnActor<ASandboxWeaponBase>(Weapon->GetClass(), GetActorLocation(), GetActorRotation(), SpawnParams);
 
 		if (NewWeapon)
 		{
-			EquipWeapon(NewWeapon);
-			InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
+			NewWeapon->SetActorEnableCollision(false);
+
+			if (NewWeapon->SlotType == EItemSlotType::MainWeapon && !PrimaryWeapon)
+			{
+				PrimaryWeapon = NewWeapon;
+				InternalAttachWeapon(PrimaryWeapon, TEXT("PrimaryWeaponSocket"), PrimaryWeapon->HolsterOffset);
+				//UE_LOG(LogTemp, Log, TEXT("주무기 부착"));
+			}
+			else if (NewWeapon->SlotType == EItemSlotType::SubWeapon && !SecondaryWeapon)
+			{
+				SecondaryWeapon = NewWeapon;
+				InternalAttachWeapon(SecondaryWeapon, TEXT("SecondaryWeaponSocket"), SecondaryWeapon->HolsterOffset);
+				//UE_LOG(LogTemp, Log, TEXT("부무기 부착"));
+			}
+			else
+			{
+				InventoryComponent->AddItem(NewWeapon->GetClass(), 1);
+				NewWeapon->Destroy();
+			}
 		}
-	}
-	else
-	{
-		ItemCDO->Use(this);
-		InventoryComponent->RemoveItem(SelectedSlotIndex, 1);
+		Weapon->Destroy();
 	}
 
-}
-
-void ALunarAsylumCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
-{
-	if (!Weapon) return;
-
-	if (Weapon->SlotType == EItemSlotType::MainWeapon)
-	{
-		if (PrimaryWeapon)
-		{
-			PrimaryWeapon->Destroy();
-		}
-		PrimaryWeapon = Weapon;
-	}
-	else if (Weapon->SlotType == EItemSlotType::SubWeapon)
-	{
-		if (SecondaryWeapon)
-		{
-			SecondaryWeapon->Destroy();
-		}
-		SecondaryWeapon = Weapon;
-	}
-
-	CurrentWeapon = Weapon;
-
-	if (CurrentWeapon->WeaponType == EWeaponType::Shotgun || CurrentWeapon->WeaponType == EWeaponType::Rifle)
-	{
-		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("PrimaryWeaponSocket"));
-	}
-	else
-	{
-		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("SecondaryWeaponSocket"));
-	}
 }
 
 void ALunarAsylumCharacter::ANAttachWeapon()
@@ -370,10 +273,7 @@ void ALunarAsylumCharacter::ANAttachWeapon()
 		CurrentWeapon->Mesh->SetWorldTransform(WorldTransform);
 		TargetWeaponTransform = CurrentWeapon->EquipOffset;
 		bIsInterpWeaponTransform = true;
-		//bIsIKAlpha = true;
-		//TargetIKAlpha = 1.f;
 	}
-
 }
 
 void ALunarAsylumCharacter::ANHolsterWeapon()
@@ -388,8 +288,6 @@ void ALunarAsylumCharacter::ANHolsterWeapon()
 		CurrentWeapon->Mesh->SetWorldTransform(WorldTransform);
 		TargetWeaponTransform = CurrentWeapon->HolsterOffset;
 		bIsInterpWeaponTransform = true;
-		//bIsIKAlpha = true;
-		//TargetIKAlpha = 0.f;
 	}
 }
 
@@ -487,7 +385,7 @@ void ALunarAsylumCharacter::UpdateInteractionCheck()
 	FVector2D ScreenCenter(ScreenWidth * 0.5f, ScreenHeight * 0.5f);
 
 	FVector WorldLocation, WorldDirection;
-	// 3. 2D 화면 중앙을 3D 월드 시작점과 방향 벡터로 변환
+	// 2D 화면 중앙을 3D 월드 시작점과 방향 벡터로 변환
 
 
 	if (PC->DeprojectScreenPositionToWorld(ScreenCenter.X, ScreenCenter.Y, WorldLocation, WorldDirection))
@@ -506,26 +404,22 @@ void ALunarAsylumCharacter::UpdateInteractionCheck()
 			HitResult,
 			StartLocation,
 			End,
-			FQuat::Identity,      
-			ECC_GameTraceChannel2, 
-			SweepSphere,           
+			FQuat::Identity,
+			ECC_GameTraceChannel2,
+			SweepSphere,
 			Params
 		);
 
 		// 디버그 출력
-		//DrawDebugSphere(GetWorld(), StartLocation, 20.f, 12, FColor::Red, false, 0.1f);
 		DrawDebugSphere(GetWorld(), HitResult.Location, 20.f, 12, bHit ? FColor::Green : FColor::Red, false, 0.1f);
 
 		if (bHit)
 		{
-			//UE_LOG(LogTemp, Log, TEXT("아이템 : %s"), *HitResult.GetActor()->GetName());
-
 			AItemBase* InteractionItem = Cast<AItemBase>(HitResult.GetActor());
 			if (InteractionItem && TargetItem != InteractionItem)
 			{
 				TargetItem = InteractionItem;
-				OnTargetItemChanged.Broadcast(TargetItem->GetActorLabel()); 
-				//GEngine->AddOnScreenDebugMessage(-1, 9.f, FColor::Cyan, FString::Printf(TEXT("아이템 정보 : %s"), *TargetItem->GetActorNameOrLabel()));
+				OnTargetItemChanged.Broadcast(TargetItem->ItemName.ToString());
 			}
 		}
 		else
@@ -539,35 +433,6 @@ void ALunarAsylumCharacter::UpdateInteractionCheck()
 
 
 	}
-
-
-	//FVector StartLocation = Camera->GetComponentLocation() + Camera->GetComponentRotation().Vector() * 175.f;
-
-	//FVector End = StartLocation + Camera->GetComponentRotation().Vector() * InteractionDistance;
-
-	//FHitResult HitResult;
-	//FCollisionQueryParams Params;
-	//Params.AddIgnoredActor(this);
-	//bool bHit = GetWorld()->LineTraceSingleByChannel(
-	//	HitResult,
-	//	StartLocation,
-	//	End,
-	//	ECC_GameTraceChannel2,
-	//	Params
-	//);
-
-	//// 연출용 트레이스 : 디버그 출력
-	//DrawDebugLine(
-	//	GetWorld(),
-	//	StartLocation,
-	//	End,
-	//	FColor::Blue,
-	//	false,
-	//	5.f,
-	//	0,
-	//	2.0f
-	//);
-
 }
 
 void ALunarAsylumCharacter::PrimaryEquipToggle()
@@ -582,7 +447,6 @@ void ALunarAsylumCharacter::PrimaryEquipToggle()
 			CurrentWeapon = PrimaryWeapon;
 			AnimInstance->Montage_Play(CurrentWeapon->CharacterAnimMontages.Equip);
 			//PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
-
 			EndDelegate.BindUObject(this, &ALunarAsylumCharacter::OnEquipMontageEnd);
 			AnimInstance->Montage_SetEndDelegate(EndDelegate, CurrentWeapon->CharacterAnimMontages.Equip);
 			return;

@@ -1,23 +1,27 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
-
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
-#include "Player\WeaponTestActor.h"
 #include "ProjectTypes.h"
-#include "../Item/ItemBase.h"
-#include "../Item/Weapons/SandboxWeaponBase.h"
 #include "LunarAsylumCharacter.generated.h"
 
+// 전방 선언 (Forward Declarations)
+class USpringArmComponent;
+class UCameraComponent;
+class UInputMappingContext;
+class UInputConfigData;
+class UPlayerStatComponent;
+class UInventoryComponent;
+class UAnimMontage;
+class ASandboxWeaponBase;
+class AItemBase;
+
+//-----------------------------------------------------------------------------
+// DELEGATES
+//-----------------------------------------------------------------------------
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTargetItemChangedSignature, const FString&, ItemName);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemAcquiredSignature, const FString&, ItemAcquiredName);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEquipStateChanged, EEquipState, EquipState);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAimingChanged, bool, bIsAiming);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FActionStateChanged, EActionState, ActionState);
 
 UCLASS()
@@ -28,188 +32,202 @@ class TEAM6_CH3_PROJECT_API ALunarAsylumCharacter : public ACharacter
 public:
 	ALunarAsylumCharacter();
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
-	class USpringArmComponent* CameraArm;
+	//-----------------------------------------------------------------------------
+	// COMPONENTS
+	//-----------------------------------------------------------------------------
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Components")
+	USpringArmComponent* CameraArm;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera)
-	class UCameraComponent* Camera;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Components")
+	UCameraComponent* Camera;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input)
-	class UInputMappingContext* DefaultMappingContext;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Components")
+	UPlayerStatComponent* PlayerStatComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Stat)
-	class UPlayerStatComponent* PlayerStatComponent;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Components")
+	UInventoryComponent* InventoryComponent;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input")
-	class UInputConfigData* InputConfigData;
+	//-----------------------------------------------------------------------------
+	// INPUT CONFIG
+	//-----------------------------------------------------------------------------
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player|Input")
+	UInputMappingContext* DefaultMappingContext;
 
-	// 조준
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
-	bool bIsAiming;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player|Input")
+	UInputConfigData* InputConfigData;
 
-	// 조준 관련 설정 값들
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Aim")
-	FAimSetting AimSettings;
-	float CurrentAimSensitivity;
-
-	// 달리기
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
+	//-----------------------------------------------------------------------------
+	// MOVEMENT & AIM SETTINGS
+	//-----------------------------------------------------------------------------
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Player|State")
 	bool bIsSprint;
 
-	// 이동 관련 설정 값들
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings|Movement")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Player|State")
+	bool bIsAiming;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Settings|Movement")
 	FMovementSetting MoveSettings;
 
-	// 캐릭터 상태 - 맨손/주무기/보조무기
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Settings|Aim")
+	FAimSetting AimSettings;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Player|Settings|Aim")
+	float CurrentAimSensitivity;
+
+	//-----------------------------------------------------------------------------
+	// ENUM STATES
+	//-----------------------------------------------------------------------------
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|State")
 	EEquipState CurrentEquipState;
 
-	// 애니메이션 상태
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|State")
 	EActionState CurrentActionState;
 
-	// 주무기
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//-----------------------------------------------------------------------------
+	// WEAPONS & COMBAT
+	//-----------------------------------------------------------------------------
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Combat")
 	ASandboxWeaponBase* PrimaryWeapon;
-	// 보조무기
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Combat")
 	ASandboxWeaponBase* SecondaryWeapon;
-	// 현재 착용중인 무기를 가리키는 포인터
-	UPROPERTY(BlueprintReadOnly)
+
+	UPROPERTY(BlueprintReadOnly, Category = "Player|Combat")
 	ASandboxWeaponBase* CurrentWeapon;
 
-	UPROPERTY(BlueprintAssignable)
-	FEquipStateChanged OnEquipStateChanged;
-	UPROPERTY(BlueprintAssignable)
-	FActionStateChanged OnActionStateChanged;
-
-	UPROPERTY(BlueprintAssignable)
-	FAimingChanged OnAimingChanged;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Combat|Animation")
 	UAnimMontage* AM_HitReaction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Combat|Animation")
 	UAnimMontage* AM_Death;
-
-	class UInventoryComponent* InventoryComponent;
-
-	// 인벤토리
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Inventory")
-	int32 SelectedSlotIndex = -1;
 
 	FTimerHandle AutoFireTimer;
 
+	//-----------------------------------------------------------------------------
+	// WEAPONS TRANSFORMS & IK SYSTEM
+	//-----------------------------------------------------------------------------
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Combat|IK")
+	float WeaponInterpSpeed = 10.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Player|Combat|IK")
+	float LeftHandIKAlpha = 0.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Combat|IK")
+	float IKInterpSpeed = 10.0f;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|Combat|IK")
+	FTransform WeaponEffector;
+
+	bool bIsInterpWeaponTransform = false;
+	FTransform TargetWeaponTransform;
+	float TargetIKAlpha = 0.f;
+	bool bIsIKAlpha = false;
+
+	//-----------------------------------------------------------------------------
+	// INVENTORY & INTERACTION
+	//-----------------------------------------------------------------------------
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Player|Inventory")
+	int32 SelectedSlotIndex = -1;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Player|Interaction")
+	AItemBase* TargetItem = nullptr;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Interaction")
+	float InteractionDistance = 1000.f;
+
+	//-----------------------------------------------------------------------------
+	// DELEGATE INSTANCES
+	//-----------------------------------------------------------------------------
+	UPROPERTY(BlueprintAssignable, Category = "Player|Delegates")
+	FEquipStateChanged OnEquipStateChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Player|Delegates")
+	FActionStateChanged OnActionStateChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Player|Delegates")
+	FAimingChanged OnAimingChanged;
+
+	UPROPERTY(BlueprintAssignable, Category = "Player|Delegates")
 	FOnTargetItemChangedSignature OnTargetItemChanged;
 
+	UPROPERTY(BlueprintAssignable, Category = "Player|Delegates")
 	FOnItemAcquiredSignature OnItemAcquired;
 
-	// 이동
-	void Move(const struct FInputActionValue& Value);
-
-	// 마우스 입력 기반 시점 회전
-	void Look(const struct FInputActionValue& Value);
-
+	//-----------------------------------------------------------------------------
+	// PUBLIC METHODS
+	//-----------------------------------------------------------------------------
 	void SetActionState(EActionState NewState);
-
 	void SetEquipState(EEquipState NewState);
+	void EquipWeapon(ASandboxWeaponBase* Weapon);
+
+	UFUNCTION(BlueprintCallable, Category = "Player|Combat")
+	void ANAttachWeapon();
+
+	UFUNCTION(BlueprintCallable, Category = "Player|Combat")
+	void ANHolsterWeapon();
+
+	void InternalAttachWeapon(ASandboxWeaponBase* Weapon, FName SocketName, const FTransform& Offset);
+	void UpdateWeaponTransform(float DeltaTime);
+	void UpdateWeaponIKTransform();
+	void UpdateWeaponIKWeight(float DeltaTime);
+	void OnEquipMontageEnd(UAnimMontage* Montage, bool bInterrupted);
+	void UpdatePlayerStateDebugMessage();
 
 protected:
+	//-----------------------------------------------------------------------------
+	// ENGINE OVERRIDES
+	//-----------------------------------------------------------------------------
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	virtual void NotifyControllerChanged() override;
 	virtual float TakeDamage(float DamageAmount, struct FDamageEvent const& DamageEvent, class AController* EventInstigator, AActor* DamageCauser) override;
 
-	UFUNCTION(BlueprintCallable)
-	void ApplyDamage(float Amount);
-
-	// 조준
-	UFUNCTION(BlueprintCallable)
-	void StartAim();
-	UFUNCTION(BlueprintCallable)
-	void StopAim();
-	void AimSetting();
-	void UpdateAimZoom(float DeltaTime);
-
-	// 공격
-	UFUNCTION(BlueprintCallable)
-	void OnFire();
-	UFUNCTION(BlueprintCallable)
-	void StartFire();
-	UFUNCTION(BlueprintCallable)
-	void StopFire();
-
-	// 달리기
+	//-----------------------------------------------------------------------------
+	// INPUT & MOVEMENT METHODS
+	//-----------------------------------------------------------------------------
+	void Move(const struct FInputActionValue& Value);
+	void Look(const struct FInputActionValue& Value);
 	void StartSprint();
 	void StopSprint();
 
-	// 상호작용 
-	void Interact();
+	//-----------------------------------------------------------------------------
+	// COMBAT & AIM METHODS
+	//-----------------------------------------------------------------------------
+	UFUNCTION(BlueprintCallable, Category = "Player|Input|Actions")
+	void StartAim();
 
-	// 아이템 사용
-	void UseItem();
+	UFUNCTION(BlueprintCallable, Category = "Player|Input|Actions")
+	void StopAim();
 
-	// 재장전
+	void AimSetting();
+	void UpdateAimZoom(float DeltaTime);
+
+	UFUNCTION(BlueprintCallable, Category = "Player|Input|Actions")
+	void OnFire();
+
+	UFUNCTION(BlueprintCallable, Category = "Player|Input|Actions")
+	void StartFire();
+
+	UFUNCTION(BlueprintCallable, Category = "Player|Input|Actions")
+	void StopFire();
+
+	void PrimaryEquipToggle();
+	void SecondaryEquipToggle();
 	void Reload();
 
-	// 주무기 장착/해제
-	void PrimaryEquipToggle();
-
-	// 보조무기 장착/해제
-	void SecondaryEquipToggle();
-
-	// 피격
-	void HitReaction();
-
-	// 사망
-	UFUNCTION()
-	void OnDeath();
-
-	public:
-	void EquipWeapon(ASandboxWeaponBase* Weapon);
-
-	UFUNCTION(BlueprintCallable)
-	void ANAttachWeapon();
-
-	UFUNCTION(BlueprintCallable)
-	void ANHolsterWeapon();
-
-	void InternalAttachWeapon(ASandboxWeaponBase* Weapon, FName SocketName, const FTransform& Offset);
-
-	// 무기위치,회전 보간 관련 변수
-	bool bIsInterpWeaponTransform = false;
-	FTransform TargetWeaponTransform;
-
-	UPROPERTY(EditAnywhere)
-	float WeaponInterpSpeed = 10.0f; // 보간 속도
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "IK")
-	float LeftHandIKAlpha = 0.f;
-	float TargetIKAlpha = 0.f;
-	UPROPERTY(EditAnywhere)
-	float IKInterpSpeed = 10.0f; // 보간 속도
-	bool bIsIKAlpha = false;
-
-	void UpdateWeaponTransform(float DeltaTime);
-
-	void UpdateWeaponIKTransform();
-
-	void UpdateWeaponIKWeight(float DeltaTime);
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "IK")
-	FTransform WeaponEffector;
-
-	void OnEquipMontageEnd(UAnimMontage* Montage, bool bInterrupted);
-
-	void UpdatePlayerStateDebugMessage();
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Interaction")
-	AItemBase* TargetItem = nullptr;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
-	float InteractionDistance = 1000.f;
-
+	//-----------------------------------------------------------------------------
+	// INTERACTION & DAMAGE METHODS
+	//-----------------------------------------------------------------------------
+	void Interact();
+	void UseItem();
 	void UpdateInteractionCheck();
 
+	UFUNCTION(BlueprintCallable, Category = "Player|Damage")
+	void ApplyDamage(float Amount);
+
+	void HitReaction();
+
+	UFUNCTION()
+	void OnDeath();
 };

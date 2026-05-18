@@ -83,10 +83,13 @@ protected:
 
 	FTimerHandle TimerReloadDelay;
 
-	/** 라인트레이스 시작 지점 보정 오프셋 값*/
+	// 라인트레이스 시작 지점 보정 오프셋 값
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
 	float ViewStartOffset = 175.f;
 
+	//-----------------------------------------------------------------------------
+	// 반동 Pitch,Yaw(Min,Max)
+	//-----------------------------------------------------------------------------
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
 	float PitchRecoilMin = 0.15f;
 

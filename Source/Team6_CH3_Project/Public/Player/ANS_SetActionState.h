@@ -15,11 +15,10 @@ class TEAM6_CH3_PROJECT_API UANS_SetActionState : public UAnimNotifyState
 {
 	GENERATED_BODY()
 	
-public:
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	EActionState StateToSet;
-
+protected:
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration) override;
 	void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation) override;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
+	EActionState StateToSet;
 };
