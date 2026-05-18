@@ -2,6 +2,7 @@
 
 
 #include "Player/LunarAsylumCharacterController.h"
+#include "Player/InteractionWidget.h"
 #include "../UI/CombatHUDWidget.h"
 
 
@@ -15,6 +16,15 @@ void ALunarAsylumCharacterController::BeginPlay()
 		if (HUDWidget)
 		{
 			HUDWidget->AddToViewport();
+		}
+	}
+
+	if (InteractionWidgetClass)
+	{
+		InteractionWidget = CreateWidget<UInteractionWidget>(this, InteractionWidgetClass);
+		if (InteractionWidget)
+		{
+			InteractionWidget->AddToViewport();
 		}
 	}
 }

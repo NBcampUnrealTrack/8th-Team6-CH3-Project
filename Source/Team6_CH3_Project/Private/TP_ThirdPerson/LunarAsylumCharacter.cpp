@@ -55,11 +55,13 @@ void ALunarAsylumCharacter::Tick(float DeltaTime)
 
 	UpdateWeaponTransform(DeltaTime);
 
-	// 캐릭터 상태 출력 확인용//
-	FString ActionStateString = UEnum::GetValueAsString(CurrentActionState);
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, ActionStateString);
-	FString EquipStateString = UEnum::GetValueAsString(CurrentEquipState);
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Yellow, EquipStateString);
+	UpdateWeaponIKWeight(DeltaTime);
+
+	UpdateWeaponIKTransform();
+
+	UpdateInteractionCheck();
+
+	UpdatePlayerStateDebugMessage();
 }
 
 void ALunarAsylumCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -210,12 +212,12 @@ void ALunarAsylumCharacter::StopSprint()
 
 void ALunarAsylumCharacter::Interact()
 {
-	TArray<AActor*> OverlappingActors;
-	GetOverlappingActors(OverlappingActors, AItemBase::StaticClass());
+	//TArray<AActor*> OverlappingActors;
+	//GetOverlappingActors(OverlappingActors, AItemBase::StaticClass());
 
-	for (AActor* Actor : OverlappingActors)
-	{
-		ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(Actor);
+	//for (AActor* Actor : OverlappingActors)
+	//{
+		ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(TargetItem);
 		if (Weapon)
 		{
 			FActorSpawnParameters SpawnParams;
@@ -248,8 +250,8 @@ void ALunarAsylumCharacter::Interact()
 			}
 
 			Weapon->Destroy();
-			break;
-		}
+			//break;
+		//}
 	}
 
 
@@ -361,61 +363,33 @@ void ALunarAsylumCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 
 void ALunarAsylumCharacter::ANAttachWeapon()
 {
-	//if (CurrentWeapon && GetMesh())
-	//{
-	//	CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
-
-	//	CurrentWeapon->Mesh->SetRelativeLocation(CurrentWeapon->EquipOffset.GetLocation());
-	//	CurrentWeapon->Mesh->SetRelativeRotation(CurrentWeapon->EquipOffset.GetRotation());
-	//}
-
 	if (CurrentWeapon && GetMesh())
 	{
-		//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("WeaponSocket"));
-
-		//TargetWeaponTransform = CurrentWeapon->EquipOffset;
-		//bIsInterpWeaponTransform = true;
-
 		FTransform WorldTransform = CurrentWeapon->Mesh->GetComponentTransform();
 		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("WeaponSocket"));
 		CurrentWeapon->Mesh->SetWorldTransform(WorldTransform);
 		TargetWeaponTransform = CurrentWeapon->EquipOffset;
 		bIsInterpWeaponTransform = true;
+		//bIsIKAlpha = true;
+		//TargetIKAlpha = 1.f;
 	}
 
 }
 
 void ALunarAsylumCharacter::ANHolsterWeapon()
 {
-	//if (CurrentWeapon && GetMesh())
-	//{
-	//	if (CurrentWeapon->WeaponType == EWeaponType::Shotgun || CurrentWeapon->WeaponType == EWeaponType::Rifle)
-	//	{
-	//		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("PrimaryWeaponSocket"));
-	//	}
-	//	else
-	//	{
-	//		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("SecondaryWeaponSocket"));
-	//	}
-
-	//	CurrentWeapon->Mesh->SetRelativeLocation(CurrentWeapon->HolsterOffset.GetLocation());
-	//	CurrentWeapon->Mesh->SetRelativeRotation(CurrentWeapon->HolsterOffset.GetRotation());
-	//}
 
 	if (CurrentWeapon && GetMesh())
 	{
 		FName TargetSocket = (CurrentWeapon->WeaponType == EWeaponType::Pistol) ? TEXT("SecondaryWeaponSocket") : TEXT("PrimaryWeaponSocket");
-
-		//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TargetSocket);
-
-		//TargetWeaponTransform = CurrentWeapon->HolsterOffset;
-		//bIsInterpWeaponTransform = true;
-
 		FTransform WorldTransform = CurrentWeapon->Mesh->GetComponentTransform();
+
 		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TargetSocket);
 		CurrentWeapon->Mesh->SetWorldTransform(WorldTransform);
 		TargetWeaponTransform = CurrentWeapon->HolsterOffset;
 		bIsInterpWeaponTransform = true;
+		//bIsIKAlpha = true;
+		//TargetIKAlpha = 0.f;
 	}
 }
 
@@ -456,21 +430,170 @@ void ALunarAsylumCharacter::UpdateWeaponTransform(float DeltaTime)
 	}
 }
 
+void ALunarAsylumCharacter::UpdateWeaponIKTransform()
+{
+	if (CurrentEquipState != EEquipState::Unarmed && CurrentWeapon)
+	{
+		FTransform WeaponSocketTransform = CurrentWeapon->Mesh->GetSocketTransform(FName(TEXT("Socket_LeftHand")));
+		FVector WeaponIKLocation;
+		FRotator WeaponIKRotation;
+
+		GetMesh()->TransformToBoneSpace(FName(TEXT("hand_r")), WeaponSocketTransform.GetLocation(), WeaponSocketTransform.GetRotation().Rotator(), WeaponIKLocation, WeaponIKRotation);
+
+		WeaponEffector.SetLocation(WeaponIKLocation);
+		WeaponEffector.SetRotation(WeaponIKRotation.Quaternion());
+	}
+}
+
+void ALunarAsylumCharacter::UpdateWeaponIKWeight(float DeltaTime)
+{
+	LeftHandIKAlpha = FMath::FInterpTo(LeftHandIKAlpha, TargetIKAlpha, DeltaTime, IKInterpSpeed);
+
+	if (FMath::IsNearlyEqual(LeftHandIKAlpha, TargetIKAlpha, 0.01f))
+	{
+		bIsIKAlpha = false;
+		LeftHandIKAlpha = TargetIKAlpha;
+	}
+}
+
+void ALunarAsylumCharacter::OnEquipMontageEnd(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (!bInterrupted)
+	{
+		TargetIKAlpha = 1.f;
+		bIsIKAlpha = true;
+	}
+}
+
+void ALunarAsylumCharacter::UpdatePlayerStateDebugMessage()
+{
+	// 캐릭터 상태 출력 확인용//
+	FString ActionStateString = UEnum::GetValueAsString(CurrentActionState);
+	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, ActionStateString);
+	FString EquipStateString = UEnum::GetValueAsString(CurrentEquipState);
+	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Yellow, EquipStateString);
+}
+
+void ALunarAsylumCharacter::UpdateInteractionCheck()
+{
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (!PC) return;
+
+	// 화면 크기 가져오기
+	int32 ScreenWidth, ScreenHeight;
+	PC->GetViewportSize(ScreenWidth, ScreenHeight);
+
+	// 화면 정중앙 2D 좌표 계산
+	FVector2D ScreenCenter(ScreenWidth * 0.5f, ScreenHeight * 0.5f);
+
+	FVector WorldLocation, WorldDirection;
+	// 3. 2D 화면 중앙을 3D 월드 시작점과 방향 벡터로 변환
+
+
+	if (PC->DeprojectScreenPositionToWorld(ScreenCenter.X, ScreenCenter.Y, WorldLocation, WorldDirection))
+	{
+		// 변환 성공 시, 기존 시작/끝 계산 방식 교체
+		FVector StartLocation = WorldLocation;
+		FVector End = StartLocation + (WorldDirection * InteractionDistance);
+
+		FHitResult HitResult;
+		FCollisionQueryParams Params;
+		Params.AddIgnoredActor(this);
+
+		FCollisionShape SweepSphere = FCollisionShape::MakeSphere(20.f);
+
+		bool bHit = GetWorld()->SweepSingleByChannel(
+			HitResult,
+			StartLocation,
+			End,
+			FQuat::Identity,      
+			ECC_GameTraceChannel2, 
+			SweepSphere,           
+			Params
+		);
+
+		// 디버그 출력
+		//DrawDebugSphere(GetWorld(), StartLocation, 20.f, 12, FColor::Red, false, 0.1f);
+		DrawDebugSphere(GetWorld(), HitResult.Location, 20.f, 12, bHit ? FColor::Green : FColor::Red, false, 0.1f);
+
+		if (bHit)
+		{
+			//UE_LOG(LogTemp, Log, TEXT("아이템 : %s"), *HitResult.GetActor()->GetName());
+
+			AItemBase* InteractionItem = Cast<AItemBase>(HitResult.GetActor());
+			if (InteractionItem && TargetItem != InteractionItem)
+			{
+				TargetItem = InteractionItem;
+				OnTargetItemChanged.Broadcast(TargetItem->GetActorLabel()); 
+				//GEngine->AddOnScreenDebugMessage(-1, 9.f, FColor::Cyan, FString::Printf(TEXT("아이템 정보 : %s"), *TargetItem->GetActorNameOrLabel()));
+			}
+		}
+		else
+		{
+			if (TargetItem != nullptr)
+			{
+				TargetItem = nullptr;
+				OnTargetItemChanged.Broadcast(TEXT(""));
+			}
+		}
+
+
+	}
+
+
+	//FVector StartLocation = Camera->GetComponentLocation() + Camera->GetComponentRotation().Vector() * 175.f;
+
+	//FVector End = StartLocation + Camera->GetComponentRotation().Vector() * InteractionDistance;
+
+	//FHitResult HitResult;
+	//FCollisionQueryParams Params;
+	//Params.AddIgnoredActor(this);
+	//bool bHit = GetWorld()->LineTraceSingleByChannel(
+	//	HitResult,
+	//	StartLocation,
+	//	End,
+	//	ECC_GameTraceChannel2,
+	//	Params
+	//);
+
+	//// 연출용 트레이스 : 디버그 출력
+	//DrawDebugLine(
+	//	GetWorld(),
+	//	StartLocation,
+	//	End,
+	//	FColor::Blue,
+	//	false,
+	//	5.f,
+	//	0,
+	//	2.0f
+	//);
+
+}
+
 void ALunarAsylumCharacter::PrimaryEquipToggle()
 {
 	if (PrimaryWeapon)
 	{
-		if (CurrentEquipState == EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
+
+		if (AnimInstance && CurrentEquipState == EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
 		{
+			FOnMontageEnded EndDelegate;
 			CurrentWeapon = PrimaryWeapon;
-			//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
-			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
+			AnimInstance->Montage_Play(CurrentWeapon->CharacterAnimMontages.Equip);
+			//PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
+
+			EndDelegate.BindUObject(this, &ALunarAsylumCharacter::OnEquipMontageEnd);
+			AnimInstance->Montage_SetEndDelegate(EndDelegate, CurrentWeapon->CharacterAnimMontages.Equip);
 			return;
 		}
+
 		if (CurrentEquipState == EEquipState::Primary && CurrentActionState == EActionState::Idle)
 		{
-			//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("PrimaryWeaponSocket"));
 			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Holster);
+			LeftHandIKAlpha = 0.f;
+			TargetIKAlpha = 0.f;
+			bIsIKAlpha = false;
 		}
 	}
 }
@@ -479,19 +602,24 @@ void ALunarAsylumCharacter::SecondaryEquipToggle()
 {
 	if (SecondaryWeapon)
 	{
-		if (CurrentEquipState == EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
-		{
-			CurrentWeapon = SecondaryWeapon;
-			//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
+		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 
-			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
+		if (AnimInstance && CurrentEquipState == EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
+		{
+			FOnMontageEnded EndDelegate;
+			CurrentWeapon = SecondaryWeapon;
+			AnimInstance->Montage_Play(CurrentWeapon->CharacterAnimMontages.Equip);
+			//PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
+			EndDelegate.BindUObject(this, &ALunarAsylumCharacter::OnEquipMontageEnd);
+			AnimInstance->Montage_SetEndDelegate(EndDelegate, CurrentWeapon->CharacterAnimMontages.Equip);
 			return;
 		}
 		if (CurrentEquipState == EEquipState::Secondary && CurrentActionState == EActionState::Idle)
 		{
-			//CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("SecondaryWeaponSocket"));
-
 			PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Holster);
+			LeftHandIKAlpha = 0.f;
+			TargetIKAlpha = 0.f;
+			bIsIKAlpha = false;
 		}
 	}
 }
@@ -520,29 +648,7 @@ void ALunarAsylumCharacter::OnDeath()
 			PlayAnimMontage(AM_Death);
 		}
 	}
-
-
 }
-
-//void ALunarAsylumCharacter::GrabWeapon()
-//{
-//	if (CurrentWeapon && GetMesh())
-//	{
-//		FVector NewLocation(-5.434822f, 4.287620f, 0.943788f);
-//		FRotator NewRotator(12.202518f, 91.397473f, 21.198131f);
-//
-//		//GetMesh()->SetRelativeLocation(NewLocation);
-//		//GetMesh()->SetRelativeRotation(NewRotator);
-//
-//
-//		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetNotIncludingScale, TEXT("WeaponSocket"));
-//
-//		//CurrentWeapon->SetActorRelativeLocation(NewLocation);
-//		//CurrentWeapon->SetActorRelativeRotation(NewRotator);
-//		CurrentWeapon->Mesh->SetRelativeLocation(NewLocation);
-//		CurrentWeapon->Mesh->SetRelativeRotation(NewRotator);
-//	}
-//}
 
 void ALunarAsylumCharacter::SetActionState(EActionState NewState)
 {
