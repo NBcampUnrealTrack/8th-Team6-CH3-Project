@@ -252,10 +252,6 @@ void ASandboxWeaponBase::ApplyRecoil()
 	}
 }
 
-void ASandboxWeaponBase::MaxAmmoAdd()
-{
-	CurrentAmmo += MaxAmmo;
-}
 
 
 void ASandboxWeaponBase::UpdateAmmo()

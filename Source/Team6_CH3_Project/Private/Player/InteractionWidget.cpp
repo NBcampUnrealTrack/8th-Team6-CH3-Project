@@ -31,7 +31,7 @@ void UInteractionWidget::ShowGuide(const FString& ItemName)
 {
     if (GuideText)
     {
-        GuideText->SetText(FText::FromString(FString::Printf(TEXT("[E] %s"), *ItemName)));
+        GuideText->SetText(FText::FromString(FString::Printf(TEXT("[F] %s"), *ItemName)));
         GuideText->SetVisibility(ESlateVisibility::Visible);
     }
 }
@@ -49,7 +49,7 @@ void UInteractionWidget::ShowAcquisitionMessage(const FString& ItemName)
     if (AcquisitionText)
     {
 
-        AcquisitionText->SetText(FText::FromString(ItemName));
+        AcquisitionText->SetText(FText::FromString(FString::Printf(TEXT("%s을(를) 획득했습니다!"), *ItemName)));
         AcquisitionText->SetVisibility(ESlateVisibility::Visible);
 
 
