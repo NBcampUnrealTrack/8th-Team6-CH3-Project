@@ -7,8 +7,12 @@
 #include "../Item/Weapons/SandboxWeaponBase.h"
 #include "Camera/CameraComponent.h"
 #include "EnhancedInputComponent.h"
+
+#include "InputAction.h"
+#include "Components\SpotLightComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Player\InputConfigData.h"
+#include "InputTriggers.h"
 #include "EnhancedInputSubsystems.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Player/PlayerStatComponent.h"
@@ -34,6 +38,24 @@ ALunarAsylumCharacter::ALunarAsylumCharacter()
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(CameraArm);
 
+	Torch = CreateDefaultSubobject<USpotLightComponent>(TEXT("Torch"));
+	Torch->SetupAttachment(Camera);
+	Torch->SetRelativeLocation(FVector(350.f, 0.f, 0.f));
+
+	Torch->SetIntensityUnits(ELightUnits::Lumens);
+
+	Torch->Intensity = 100.0f;
+	Torch->AttenuationRadius = 2000.0f;
+
+	Torch->InnerConeAngle = 10.0f;
+	Torch->OuterConeAngle = 25.0f;
+
+	CurrentAimSensitivity = AimSettings.NormalSensitivity;
+
+	CameraArm->TargetArmLength = AimSettings.DefaultArmLength;
+
+	CameraArm->SocketOffset = AimSettings.DefaultArmSocketOffset;
+
 	PlayerStatComponent = CreateDefaultSubobject<UPlayerStatComponent>(TEXT("StatComponent"));
 
 	InventoryComponent = CreateDefaultSubobject<UInventoryComponent>(TEXT("InventoryComponent"));
@@ -43,8 +65,21 @@ void ALunarAsylumCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	CurrentAimSensitivity = AimSettings.NormalSensitivity;
+	if (InputConfigData && InputConfigData->InteractAction)
+	{
+		for (const UInputTrigger* Trigger : InputConfigData->InteractAction->Triggers)
+		{
+			if (const UInputTriggerHold* HoldTrigger = Cast<UInputTriggerHold>(Trigger))
+			{
+				InteractHoldTimeDuration = HoldTrigger->HoldTimeThreshold;
+				break;
+			}
+		}
+	}
+
 	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.WalkSpeed;
+
+	Torch->SetVisibility(false);
 
 	PlayerStatComponent->OnDeath.AddDynamic(this, &ALunarAsylumCharacter::OnDeath);
 }
@@ -93,9 +128,17 @@ void ALunarAsylumCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 
 			EnhancedInputComponent->BindAction(InputConfigData->SecondaryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::SecondaryEquipToggle);
 
-			//EnhancedInputComponent->BindAction(InputConfigData->UseItemAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::UseItem);
+			EnhancedInputComponent->BindAction(InputConfigData->TorchAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::ToggleTorch);
 
-			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::Interact);
+			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::OnInteractStarted);
+			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Ongoing, this, &ALunarAsylumCharacter::OnInteractOngoing);
+			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Triggered, this, &ALunarAsylumCharacter::OnInteractTriggered);
+			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Completed, this, &ALunarAsylumCharacter::OnInteractCanceled);
+			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Canceled, this, &ALunarAsylumCharacter::OnInteractCanceled);
+
+			EnhancedInputComponent->BindAction(InputConfigData->PrimaryDropAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::DropPrimaryWeapon);
+
+			EnhancedInputComponent->BindAction(InputConfigData->SecondaryDropAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::DropSecondaryWeapon);
 		}
 	}
 }
@@ -152,7 +195,10 @@ void ALunarAsylumCharacter::UpdateAimZoom(float DeltaTime)
 
 void ALunarAsylumCharacter::StartAim()
 {
-	if (CurrentEquipState == EEquipState::Unarmed) return;
+	if (CurrentEquipState == EEquipState::Unarmed)
+	{
+		return;
+	}
 
 	if (bIsSprint)
 	{
@@ -196,7 +242,10 @@ void ALunarAsylumCharacter::OnFire()
 
 void ALunarAsylumCharacter::StartFire()
 {
-	if (!CurrentWeapon || CurrentEquipState == EEquipState::Unarmed) return;
+	if (!CurrentWeapon || CurrentEquipState == EEquipState::Unarmed)
+	{
+		return;
+	}
 
 	if (CurrentActionState == EActionState::Idle)
 	{
@@ -212,7 +261,10 @@ void ALunarAsylumCharacter::StopFire()
 
 void ALunarAsylumCharacter::StartSprint()
 {
-	if (bIsAiming || CurrentActionState == EActionState::Firing) return;
+	if (bIsAiming || CurrentActionState == EActionState::Firing)
+	{
+		return;
+	}
 
 	bIsSprint = true;
 	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.SprintSpeed;
@@ -224,54 +276,116 @@ void ALunarAsylumCharacter::StopSprint()
 	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.WalkSpeed;
 }
 
-void ALunarAsylumCharacter::Interact()
+void ALunarAsylumCharacter::ToggleTorch()
 {
-	ASandboxWeaponBase* Weapon = Cast<ASandboxWeaponBase>(TargetItem);
-	if (Weapon)
+	if (Torch)
 	{
-		OnItemAcquired.Broadcast(Weapon->ItemName.ToString());
+		Torch->ToggleVisibility();
+	}
+}
 
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		ASandboxWeaponBase* NewWeapon = GetWorld()->SpawnActor<ASandboxWeaponBase>(Weapon->GetClass(), GetActorLocation(), GetActorRotation(), SpawnParams);
-
-		if (NewWeapon)
-		{
-			NewWeapon->SetActorEnableCollision(false);
-
-			if (NewWeapon->SlotType == EItemSlotType::MainWeapon && !PrimaryWeapon)
-			{
-				PrimaryWeapon = NewWeapon;
-				InternalAttachWeapon(PrimaryWeapon, TEXT("PrimaryWeaponSocket"), PrimaryWeapon->HolsterOffset);
-				//UE_LOG(LogTemp, Log, TEXT("주무기 부착"));
-			}
-			else if (NewWeapon->SlotType == EItemSlotType::SubWeapon && !SecondaryWeapon)
-			{
-				SecondaryWeapon = NewWeapon;
-				InternalAttachWeapon(SecondaryWeapon, TEXT("SecondaryWeaponSocket"), SecondaryWeapon->HolsterOffset);
-				//UE_LOG(LogTemp, Log, TEXT("부무기 부착"));
-			}
-			else
-			{
-				InventoryComponent->AddItem(NewWeapon->GetClass(), 1);
-				NewWeapon->Destroy();
-			}
-		}
-		Weapon->Destroy();
+void ALunarAsylumCharacter::Interaction()
+{
+	if (!TargetItem)
+	{
+		return;
 	}
 
+	ASandboxWeaponBase* GroundWeapon = Cast<ASandboxWeaponBase>(TargetItem);
+	if (GroundWeapon)
+	{
+		bool bHasPrimarySameType = PrimaryWeapon && (PrimaryWeapon->GetClass() == GroundWeapon->GetClass());
+		bool bHasSecondarySameType = SecondaryWeapon && (SecondaryWeapon->GetClass() == GroundWeapon->GetClass());
+
+		if (bHasPrimarySameType || bHasSecondarySameType)
+		{
+			ASandboxWeaponBase* MyOwnedWeapon = bHasPrimarySameType ? PrimaryWeapon : SecondaryWeapon;
+
+			if (MyOwnedWeapon)
+			{
+				MyOwnedWeapon->MaxAmmoAdd();
+
+				FString AmmoMessage = FString::Printf(TEXT("%s 탄약 충전!"), *GroundWeapon->ItemName.ToString());
+				OnItemAcquired.Broadcast(AmmoMessage);
+
+				TargetItem->Destroy();
+				TargetItem = nullptr;
+				OnTargetItemChanged.Broadcast(TEXT(""));
+			}
+			return;
+		}
+
+		bool bCanEquipAsMain = (GroundWeapon->SlotType == EItemSlotType::MainWeapon && !PrimaryWeapon);
+		bool bCanEquipAsSub = (GroundWeapon->SlotType == EItemSlotType::SubWeapon && !SecondaryWeapon);
+
+		if (bCanEquipAsMain || bCanEquipAsSub)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.Owner = this;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+			ASandboxWeaponBase* NewWeapon = GetWorld()->SpawnActor<ASandboxWeaponBase>(
+				GroundWeapon->GetClass(),
+				GetActorLocation(),
+				GetActorRotation(),
+				SpawnParams
+			);
+
+			NewWeapon->SetCurrentAmmo(GroundWeapon->GetCurrentAmmo());
+			UE_LOG(LogTemp, Log, TEXT("Current Ammo : %d"), NewWeapon->GetCurrentAmmo());
+
+			if (NewWeapon)
+			{
+				NewWeapon->Mesh->SetSimulatePhysics(false);
+				NewWeapon->Mesh->SetCollisionProfileName(TEXT("NoCollision"));
+				NewWeapon->SetActorEnableCollision(false);
+
+				if (NewWeapon->GetRootComponent())
+				{
+					NewWeapon->Mesh->AttachToComponent(NewWeapon->GetRootComponent(), FAttachmentTransformRules::SnapToTargetIncludingScale);
+				}
+
+				NewWeapon->Mesh->SetPhysicsLinearVelocity(FVector::ZeroVector);
+				NewWeapon->Mesh->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+				NewWeapon->SetActorLocationAndRotation(GetActorLocation(), GetActorRotation(), false, nullptr, ETeleportType::TeleportPhysics);
+
+				FString AcquiredMessage = FString::Printf(TEXT("%s 장착 완료"), *NewWeapon->ItemName.ToString());
+				OnItemAcquired.Broadcast(AcquiredMessage);
+
+				if (NewWeapon->SlotType == EItemSlotType::MainWeapon)
+				{
+					PrimaryWeapon = NewWeapon;
+					InternalAttachWeapon(PrimaryWeapon, TEXT("PrimaryWeaponSocket"), PrimaryWeapon->HolsterOffset);
+				}
+				else
+				{
+					SecondaryWeapon = NewWeapon;
+					InternalAttachWeapon(SecondaryWeapon, TEXT("SecondaryWeaponSocket"), SecondaryWeapon->HolsterOffset);
+				}
+
+				GroundWeapon->Destroy();
+				TargetItem = nullptr;
+				OnTargetItemChanged.Broadcast(TEXT(""));
+			}
+		}
+		else
+		{
+			OnItemAcquired.Broadcast(TEXT("해당 무기 슬롯이 가득 찼습니다!"));
+		}
+	}
 }
 
 void ALunarAsylumCharacter::ANAttachWeapon()
 {
 	if (CurrentWeapon && GetMesh())
 	{
-		FTransform WorldTransform = CurrentWeapon->Mesh->GetComponentTransform();
+		FTransform WorldTransform = CurrentWeapon->GetActorTransform();
+
 		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("WeaponSocket"));
-		CurrentWeapon->Mesh->SetWorldTransform(WorldTransform);
+
+		CurrentWeapon->SetActorTransform(WorldTransform);
+
 		TargetWeaponTransform = CurrentWeapon->EquipOffset;
+
 		bIsInterpWeaponTransform = true;
 	}
 }
@@ -282,23 +396,30 @@ void ALunarAsylumCharacter::ANHolsterWeapon()
 	if (CurrentWeapon && GetMesh())
 	{
 		FName TargetSocket = (CurrentWeapon->WeaponType == EWeaponType::Pistol) ? TEXT("SecondaryWeaponSocket") : TEXT("PrimaryWeaponSocket");
-		FTransform WorldTransform = CurrentWeapon->Mesh->GetComponentTransform();
 
+		FTransform WorldTransform = CurrentWeapon->GetActorTransform();
 		CurrentWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TargetSocket);
-		CurrentWeapon->Mesh->SetWorldTransform(WorldTransform);
+
+		CurrentWeapon->SetActorTransform(WorldTransform);
+
 		TargetWeaponTransform = CurrentWeapon->HolsterOffset;
+
 		bIsInterpWeaponTransform = true;
 	}
 }
 
 void ALunarAsylumCharacter::InternalAttachWeapon(ASandboxWeaponBase* Weapon, FName SocketName, const FTransform& Offset)
 {
-	if (!Weapon || !Weapon->Mesh || !GetMesh()) return;
+	if (!Weapon || !Weapon->Mesh || !GetMesh())
+	{
+		return;
+	}
 
 	Weapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, SocketName);
 
-	Weapon->Mesh->SetRelativeLocation(Offset.GetLocation());
-	Weapon->Mesh->SetRelativeRotation(Offset.GetRotation());
+	Weapon->SetActorRelativeLocation(Offset.GetLocation());
+
+	Weapon->SetActorRelativeRotation(Offset.GetRotation());
 }
 
 void ALunarAsylumCharacter::UpdateWeaponTransform(float DeltaTime)
@@ -308,23 +429,24 @@ void ALunarAsylumCharacter::UpdateWeaponTransform(float DeltaTime)
 		return;
 	}
 
-	FVector CurrentLoc = CurrentWeapon->Mesh->GetRelativeLocation();
-	FRotator CurrentRot = CurrentWeapon->Mesh->GetRelativeRotation();
+	FVector CurrentLoc = CurrentWeapon->GetRootComponent()->GetRelativeLocation();
+	FRotator CurrentRot = CurrentWeapon->GetRootComponent()->GetRelativeRotation();
 
 	FVector TargetLoc = TargetWeaponTransform.GetLocation();
 	FRotator TargetRot = TargetWeaponTransform.GetRotation().Rotator();
 
+
 	FVector NewLoc = FMath::VInterpTo(CurrentLoc, TargetLoc, DeltaTime, WeaponInterpSpeed);
 	FRotator NewRot = FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, WeaponInterpSpeed);
 
-	CurrentWeapon->Mesh->SetRelativeLocation(NewLoc);
-	CurrentWeapon->Mesh->SetRelativeRotation(NewRot);
+	CurrentWeapon->GetRootComponent()->SetRelativeLocation(NewLoc);
+	CurrentWeapon->GetRootComponent()->SetRelativeRotation(NewRot);
 
 	if (NewLoc.Equals(TargetLoc, 0.1f) && NewRot.Equals(TargetRot, 0.1f))
 	{
 		bIsInterpWeaponTransform = false;
-		CurrentWeapon->Mesh->SetRelativeLocation(TargetLoc);
-		CurrentWeapon->Mesh->SetRelativeRotation(TargetRot);
+		CurrentWeapon->GetRootComponent()->SetRelativeLocation(TargetLoc);
+		CurrentWeapon->GetRootComponent()->SetRelativeRotation(TargetRot);
 	}
 }
 
@@ -374,21 +496,23 @@ void ALunarAsylumCharacter::UpdatePlayerStateDebugMessage()
 
 void ALunarAsylumCharacter::UpdateInteractionCheck()
 {
-	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!PC) return;
+	APlayerController* PlayerController = Cast<APlayerController>(GetController());
+	if (!PlayerController)
+	{
+		return;
+	}
 
 	// 화면 크기 가져오기
 	int32 ScreenWidth, ScreenHeight;
-	PC->GetViewportSize(ScreenWidth, ScreenHeight);
+	PlayerController->GetViewportSize(ScreenWidth, ScreenHeight);
 
 	// 화면 정중앙 2D 좌표 계산
 	FVector2D ScreenCenter(ScreenWidth * 0.5f, ScreenHeight * 0.5f);
 
 	FVector WorldLocation, WorldDirection;
+
 	// 2D 화면 중앙을 3D 월드 시작점과 방향 벡터로 변환
-
-
-	if (PC->DeprojectScreenPositionToWorld(ScreenCenter.X, ScreenCenter.Y, WorldLocation, WorldDirection))
+	if (PlayerController->DeprojectScreenPositionToWorld(ScreenCenter.X, ScreenCenter.Y, WorldLocation, WorldDirection))
 	{
 		// 변환 성공 시, 기존 시작/끝 계산 방식 교체
 		FVector StartLocation = WorldLocation;
@@ -446,7 +570,6 @@ void ALunarAsylumCharacter::PrimaryEquipToggle()
 			FOnMontageEnded EndDelegate;
 			CurrentWeapon = PrimaryWeapon;
 			AnimInstance->Montage_Play(CurrentWeapon->CharacterAnimMontages.Equip);
-			//PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
 			EndDelegate.BindUObject(this, &ALunarAsylumCharacter::OnEquipMontageEnd);
 			AnimInstance->Montage_SetEndDelegate(EndDelegate, CurrentWeapon->CharacterAnimMontages.Equip);
 			return;
@@ -473,7 +596,6 @@ void ALunarAsylumCharacter::SecondaryEquipToggle()
 			FOnMontageEnded EndDelegate;
 			CurrentWeapon = SecondaryWeapon;
 			AnimInstance->Montage_Play(CurrentWeapon->CharacterAnimMontages.Equip);
-			//PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Equip);
 			EndDelegate.BindUObject(this, &ALunarAsylumCharacter::OnEquipMontageEnd);
 			AnimInstance->Montage_SetEndDelegate(EndDelegate, CurrentWeapon->CharacterAnimMontages.Equip);
 			return;
@@ -488,9 +610,66 @@ void ALunarAsylumCharacter::SecondaryEquipToggle()
 	}
 }
 
+void ALunarAsylumCharacter::DropPrimaryWeapon()
+{
+	if (CurrentEquipState != EEquipState::Primary)
+	{
+		DropWeapon(EEquipState::Primary);
+	}
+}
+
+void ALunarAsylumCharacter::DropSecondaryWeapon()
+{
+	if (CurrentEquipState != EEquipState::Secondary)
+	{
+		DropWeapon(EEquipState::Secondary);
+	}
+}
+
+void ALunarAsylumCharacter::DropWeapon(EEquipState EquipState)
+{
+	ASandboxWeaponBase* WeaponToDrop = nullptr;
+
+	if (EquipState == EEquipState::Primary)
+	{
+		WeaponToDrop = PrimaryWeapon;
+		PrimaryWeapon = nullptr;
+	}
+	else if (EquipState == EEquipState::Secondary)
+	{
+		WeaponToDrop = SecondaryWeapon;
+		SecondaryWeapon = nullptr;
+	}
+
+	if (!WeaponToDrop)
+	{
+		return;
+	}
+
+	WeaponToDrop->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+
+	WeaponToDrop->SetActorEnableCollision(true);
+	WeaponToDrop->SetOwner(nullptr);
+
+	WeaponToDrop->Mesh->SetCollisionProfileName(TEXT("Weapon"));
+	WeaponToDrop->Mesh->SetSimulatePhysics(true);
+
+	FVector DropDirection = GetActorForwardVector() + GetActorUpVector() * 0.2f; // 앞 + 위쪽 대각선 방향
+	DropDirection.Normalize();
+	float LaunchForce = 500.0f; // 던지는 힘 세기 
+
+	// 무기 메쉬에 순간적인 충격량을 가한다.
+	WeaponToDrop->Mesh->AddImpulse(DropDirection * LaunchForce, NAME_None, true);
+
+	OnItemAcquired.Broadcast(FString::Printf(TEXT("%s 버림"), *WeaponToDrop->ItemName.ToString()));
+}
+
 void ALunarAsylumCharacter::HitReaction()
 {
-	//if (CurrentActionState == EActionState::Dead) return;
+	//if (CurrentActionState == EActionState::Dead)
+	//{
+	//	return;
+	//}
 	//StopAnimMontage();
 
 	if (AM_HitReaction)
@@ -512,6 +691,45 @@ void ALunarAsylumCharacter::OnDeath()
 			PlayAnimMontage(AM_Death);
 		}
 	}
+}
+
+void ALunarAsylumCharacter::OnInteractStarted()
+{
+	if (TargetItem)
+	{
+		InteractionProgressPercent = 0.f;
+		OnInteractionProgressChanged.Broadcast(InteractionProgressPercent);
+	}
+}
+
+void ALunarAsylumCharacter::OnInteractOngoing(const FInputActionInstance& Instance)
+{
+	if (!TargetItem)
+	{
+		return;
+	}
+
+	float ElapsedTime = Instance.GetElapsedTime();
+
+	InteractionProgressPercent = FMath::Clamp(ElapsedTime / InteractHoldTimeDuration, 0.f, 1.f);
+	OnInteractionProgressChanged.Broadcast(InteractionProgressPercent);
+	UE_LOG(LogTemp, Log, TEXT("먹기 : %f"), InteractionProgressPercent);
+}
+
+void ALunarAsylumCharacter::OnInteractTriggered()
+{
+	if (TargetItem)
+	{
+		Interaction();
+		InteractionProgressPercent = 0.f;
+		OnInteractionProgressChanged.Broadcast(InteractionProgressPercent);
+	}
+}
+
+void ALunarAsylumCharacter::OnInteractCanceled()
+{
+	InteractionProgressPercent = 0.f;
+	OnInteractionProgressChanged.Broadcast(InteractionProgressPercent);
 }
 
 void ALunarAsylumCharacter::SetActionState(EActionState NewState)

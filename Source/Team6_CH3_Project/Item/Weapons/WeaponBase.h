@@ -48,6 +48,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	virtual void Fire();
 
+	int32 GetCurrentAmmo() const { return CurrentAmmo; }
+
+	void SetCurrentAmmo(int32 Ammo) { CurrentAmmo = Ammo; }
 
 	UFUNCTION(BlueprintCallable)
 	float GetRoF() const { return RoF; }

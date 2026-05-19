@@ -44,6 +44,12 @@ public:
 
 	void HideAcquisitionMessage();
 
+	UFUNCTION()
+	void OnInteractionProgressUpdated(float Percent);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void UpdateCircularGauge(float Percent);
+
 private:
 
 	// 획득 문구를 몇 초 뒤에 자동으로 사라지게 만들 타이머 핸들 

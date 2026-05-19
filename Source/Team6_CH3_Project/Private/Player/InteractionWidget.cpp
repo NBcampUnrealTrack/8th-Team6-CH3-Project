@@ -24,6 +24,7 @@ void UInteractionWidget::NativeConstruct()
 
         LunarAsylumCharacter->OnTargetItemChanged.AddDynamic(this, &UInteractionWidget::HandleTargetItemChanged);
         LunarAsylumCharacter->OnItemAcquired.AddDynamic(this, &UInteractionWidget::ShowAcquisitionMessage);
+        LunarAsylumCharacter->OnInteractionProgressChanged.AddDynamic(this, &UInteractionWidget::OnInteractionProgressUpdated);
     }
 }
 
@@ -31,7 +32,7 @@ void UInteractionWidget::ShowGuide(const FString& ItemName)
 {
     if (GuideText)
     {
-        GuideText->SetText(FText::FromString(FString::Printf(TEXT("[F] %s"), *ItemName)));
+        GuideText->SetText(FText::FromString(FString::Printf(TEXT("[E] %s"), *ItemName)));
         GuideText->SetVisibility(ESlateVisibility::Visible);
     }
 }
@@ -49,7 +50,7 @@ void UInteractionWidget::ShowAcquisitionMessage(const FString& ItemName)
     if (AcquisitionText)
     {
 
-        AcquisitionText->SetText(FText::FromString(FString::Printf(TEXT("%s을(를) 획득했습니다!"), *ItemName)));
+        AcquisitionText->SetText(FText::FromString(ItemName));
         AcquisitionText->SetVisibility(ESlateVisibility::Visible);
 
 
@@ -83,4 +84,9 @@ void UInteractionWidget::HideAcquisitionMessage()
     {
         AcquisitionText->SetVisibility(ESlateVisibility::Collapsed);
     }
+}
+
+void UInteractionWidget::OnInteractionProgressUpdated(float Percent)
+{
+    UpdateCircularGauge(Percent);
 }
