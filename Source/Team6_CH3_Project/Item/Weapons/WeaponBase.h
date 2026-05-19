@@ -31,7 +31,7 @@ public:
 	FCharacterAnimMontages CharacterAnimMontages;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponType")
-	EWeaponType WeaponType;
+	EWeaponType WeaponType = EWeaponType::Rifle;
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UCameraShakeBase> CameraShakeClass;
@@ -43,7 +43,6 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
 	class UNiagaraSystem* MuzzleEffect;
-
 
 	UFUNCTION(BlueprintCallable)
 	virtual void Fire();

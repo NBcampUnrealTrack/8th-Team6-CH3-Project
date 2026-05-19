@@ -161,6 +161,11 @@ void ATP_ThirdPersonCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 {
 	if (!Weapon) return;
 
+	if (EquippedWeapon && EquippedWeapon != Weapon)
+	{
+		EquippedWeapon->SetActorHiddenInGame(true);
+	}
+
 	if (Weapon->SlotType == EItemSlotType::MainWeapon)
 	{
 		if (MainWeaponSlot)
@@ -179,9 +184,12 @@ void ATP_ThirdPersonCharacter::EquipWeapon(ASandboxWeaponBase* Weapon)
 	}
 
 	EquippedWeapon = Weapon;
+	Weapon->SetActorHiddenInGame(false);
 	Weapon->AttachToComponent(GetMesh(),
 		FAttachmentTransformRules::SnapToTargetIncludingScale,
 		TEXT("ik_hand_gun"));
+	OnWeaponChanged.Broadcast();
+	UpdateWeaponHUD();
 }
 
 void ATP_ThirdPersonCharacter::OnFire()
@@ -240,6 +248,7 @@ void ATP_ThirdPersonCharacter::SwitchToMainWeapon()
 	MainWeaponSlot->AttachToComponent(GetMesh(),
 		FAttachmentTransformRules::SnapToTargetIncludingScale,
 		TEXT("ik_hand_gun"));
+	UpdateWeaponHUD();
 }
 void ATP_ThirdPersonCharacter::SwitchToSubWeapon()
 {
@@ -255,6 +264,7 @@ void ATP_ThirdPersonCharacter::SwitchToSubWeapon()
 	SubWeaponSlot->AttachToComponent(GetMesh(),
 		FAttachmentTransformRules::SnapToTargetIncludingScale,
 		TEXT("ik_hand_gun"));
+	UpdateWeaponHUD();
 }
 // Weapon Switch
 //
@@ -280,9 +290,10 @@ void ATP_ThirdPersonCharacter::OnInteract()
 		AItemBase* Item = Cast<AItemBase>(Actor);
 		if (Item)
 		{
-			if (!InventoryComponent->Slots[0].bIsEmpty)
+			if (InventoryComponent->IsFull())
 			{
-				InventoryComponent->RemoveItem(0, 1);
+				UE_LOG(LogTemp, Warning, TEXT("Inventory is full!"));
+				break;
 			}
 			InventoryComponent->AddItem(Item->GetClass(), 1);
 			Item->Destroy();
@@ -313,61 +324,3 @@ void ATP_ThirdPersonCharacter::OnUseItem()
 }
 // UseItem : E
 //
-
-//
-// Inventory : I
-/*
-void ATP_ThirdPersonCharacter::InInventoryToggle()
-{
-	if (!bCanToggleInventory) return;
-
-	if (!InventoryWidget && InventoryWidgetClass)
-	{
-		APlayerController* PC = Cast<APlayerController>(GetController());
-		if (PC)
-		{
-			InventoryWidget = CreateWidget<UUserWidget>(PC, InventoryWidgetClass);
-		}
-	}
-
-	if (InventoryWidget)
-	{
-		APlayerController* PC = Cast<APlayerController>(GetController());
-		if (InventoryWidget->IsInViewport())
-		{
-			InventoryWidget->RemoveFromParent();
-
-			if (PC)
-			{
-				PC->bShowMouseCursor = false;
-				PC->SetInputMode(FInputModeGameOnly());
-			}
-		}
-		else
-		{
-			InventoryWidget->AddToViewport();
-			if (PC)
-			{
-				PC->bShowMouseCursor = true;
-				FInputModeGameAndUI InputMode;
-				InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
-				InputMode.SetHideCursorDuringCapture(false);
-				PC->SetInputMode(InputMode);
-			}
-		}
-
-		bCanToggleInventory = false;
-		GetWorldTimerManager().SetTimer(
-			InventoryToggleTimer,
-			[this]() {
-				bCanToggleInventory = true;
-			},
-			0.5f,
-			false
-		);
-	}
-}
-*/
-// Inventory : I
-//
-
