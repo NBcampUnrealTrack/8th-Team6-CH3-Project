@@ -24,6 +24,7 @@ void UInteractionWidget::NativeConstruct()
 
         LunarAsylumCharacter->OnTargetItemChanged.AddDynamic(this, &UInteractionWidget::HandleTargetItemChanged);
         LunarAsylumCharacter->OnItemAcquired.AddDynamic(this, &UInteractionWidget::ShowAcquisitionMessage);
+        LunarAsylumCharacter->OnInteractionProgressChanged.AddDynamic(this, &UInteractionWidget::OnInteractionProgressUpdated);
     }
 }
 
@@ -83,4 +84,9 @@ void UInteractionWidget::HideAcquisitionMessage()
     {
         AcquisitionText->SetVisibility(ESlateVisibility::Collapsed);
     }
+}
+
+void UInteractionWidget::OnInteractionProgressUpdated(float Percent)
+{
+    UpdateCircularGauge(Percent);
 }

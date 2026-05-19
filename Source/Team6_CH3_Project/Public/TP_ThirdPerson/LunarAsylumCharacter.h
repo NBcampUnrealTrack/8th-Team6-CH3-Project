@@ -15,15 +15,19 @@ class UAnimMontage;
 class ASandboxWeaponBase;
 class AItemBase;
 class USpotLightComponent;
+struct FInputActionInstance;
 
 //-----------------------------------------------------------------------------
 // DELEGATES
 //-----------------------------------------------------------------------------
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnTargetItemChangedSignature, const FString&, ItemName);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnItemAcquiredSignature, const FString&, ItemAcquiredName);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInteractionProgressChanged, float, NewPercent);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FEquipStateChanged, EEquipState, EquipState);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FAimingChanged, bool, bIsAiming);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FActionStateChanged, EActionState, ActionState);
+
 
 UCLASS()
 class TEAM6_CH3_PROJECT_API ALunarAsylumCharacter : public ACharacter
@@ -139,6 +143,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Interaction")
 	float InteractionDistance = 1000.f;
 
+	float InteractHoldTimeDuration = 0.f;
+
+	float InteractionProgressPercent = 0.f;
+
 	//-----------------------------------------------------------------------------
 	// DELEGATE INSTANCES
 	//-----------------------------------------------------------------------------
@@ -156,6 +164,9 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Player|Delegates")
 	FOnItemAcquiredSignature OnItemAcquired;
+
+	UPROPERTY(BlueprintAssignable, Category = "Player|Delegates")
+	FOnInteractionProgressChanged OnInteractionProgressChanged;
 
 	//-----------------------------------------------------------------------------
 	// PUBLIC METHODS
@@ -225,12 +236,23 @@ protected:
 	void DropWeapon(EEquipState EquipState);
 
 	//-----------------------------------------------------------------------------
-	// INTERACTION & DAMAGE METHODS
+	// INTERACTION 
 	//-----------------------------------------------------------------------------
-	void Interact();
-	//void UseItem();
+	void Interaction();
+
 	void UpdateInteractionCheck();
 
+	void OnInteractStarted();
+
+	void OnInteractOngoing(const FInputActionInstance& Instance);
+
+	void OnInteractTriggered();
+
+	void OnInteractCanceled();
+
+	//-----------------------------------------------------------------------------
+	// DAMAGE
+	//-----------------------------------------------------------------------------
 	UFUNCTION(BlueprintCallable, Category = "Player|Damage")
 	void ApplyDamage(float Amount);
 
