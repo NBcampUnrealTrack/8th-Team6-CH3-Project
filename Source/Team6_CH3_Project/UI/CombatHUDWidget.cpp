@@ -43,18 +43,40 @@ void UCombatHUDWidget::UpdateAmmo(int32 CurrentAmmo, int32 MaxAmmo)
 
 void UCombatHUDWidget::SwitchWeaponSlot(int32 SlotIndex, UTexture2D* NewWeaponIcon)
 {
-	//// 1. 4ÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ
-	//if (WeaponSlot_1) WeaponSlot_1->SetRenderOpacity(SlotIndex == 1 ? 1.0f : 0.3f);
-	//if (WeaponSlot_2) WeaponSlot_2->SetRenderOpacity(SlotIndex == 2 ? 1.0f : 0.3f);
-	//if (WeaponSlot_3) WeaponSlot_3->SetRenderOpacity(SlotIndex == 3 ? 1.0f : 0.3f);
-	//if (WeaponSlot_4) WeaponSlot_4->SetRenderOpacity(SlotIndex == 4 ? 1.0f : 0.3f);
-
-	//// 2. ÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ ÔøΩÃπÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ∆Æ
-	//// Img_CurrentWeapon ÔøΩÔøΩÔøΩÔøΩÔøΩÔøΩ ÔøΩ÷∞ÔøΩ, ÔøΩÔøΩÔøΩÔøΩ ÔøΩÔøΩÔøΩÔøΩ ÔøΩÃπÔøΩÔøΩÔøΩ(NewWeaponIcon)ÔøΩÔøΩ ÔøΩÔøΩÔøΩﬁµ«æÔøΩÔøΩŸ∏ÔøΩ ÔøΩÔøΩ√º!
-	//if (Img_CurrentWeapon && NewWeaponIcon)
-	//{
-	//	Img_CurrentWeapon->SetBrushFromTexture(NewWeaponIcon);
-	//}
+	// 1. ΩΩ∑‘ ≈ı∏Ìµµ ¡∂¿˝ π◊ æ∆¿Ãƒ‹ ∫Ø∞Ê
+	auto SwapTexture = [](UImage* Img, UTexture2D* Tex)
+		{
+			if (!Img || !Tex) return;
+			Img->SetBrushFromTexture(Tex, false);
+			FSlateBrush Brush = Img->GetBrush();
+			Brush.ImageSize = FVector2D(270.f, 230.f);
+			Img->SetBrush(Brush);
+		};
+	
+	if (Rifle)
+	{
+		bool bActive = (SlotIndex == 1);
+		Rifle->SetRenderOpacity(bActive ? 1.0f : 0.3f);
+		SwapTexture(Rifle, bActive ? NewWeaponIcon : Icon_Rifle_Default);
+	}
+	if (Shotgun)
+	{
+		bool bActive = (SlotIndex == 2);
+		Shotgun->SetRenderOpacity(bActive ? 1.0f : 0.3f);
+		SwapTexture(Shotgun, bActive ? NewWeaponIcon : Icon_Shotgun_Default);
+	}
+	if (Pistol)
+	{
+		bool bActive = (SlotIndex == 3);
+		Pistol->SetRenderOpacity(bActive ? 1.0f : 0.3f);
+		SwapTexture(Pistol, bActive ? NewWeaponIcon : Icon_Pistol_Default);
+	}
+	
+	// 2. «ˆ¿Á π´±‚ ¿ÃπÃ¡ˆ æ˜µ•¿Ã∆Æ
+	if (Img_CurrentWeapon && NewWeaponIcon)
+	{
+		Img_CurrentWeapon->SetBrushFromTexture(NewWeaponIcon);
+	}
 }
 
 void UCombatHUDWidget::SetIsAiming(bool bNewIsAiming)
@@ -63,33 +85,82 @@ void UCombatHUDWidget::SetIsAiming(bool bNewIsAiming)
 	{
 		SetVisibility(ESlateVisibility::Visible);
 	}
-	else
-	{
+	else 
+	{ 
 		SetVisibility(ESlateVisibility::Hidden);
 	}
+}
+
+void UCombatHUDWidget::SetMainWeaponSlotVisibility(bool bShowRifle, bool bShowShotgun)
+{
+	if (Rifle)
+		Rifle->SetVisibility(bShowRifle ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	if (Shotgun)
+		Shotgun->SetVisibility(bShowShotgun ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 }
 
 void UCombatHUDWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
-
-
+	
+	// π´±‚ ΩΩ∑‘ √ ±‚ ≈ı∏Ìµµ
+	if (Rifle) Rifle->SetRenderOpacity(0.3f);
+	if (Shotgun) Shotgun->SetRenderOpacity(0.3f);
+	if (Pistol) Pistol->SetRenderOpacity(0.3f);
+	
+	// ƒ≥∏Ø≈Õ √º∑¬°§¡∂¡ÿ Ω√Ω∫≈€
 	if (APawn* OwningPawn = GetOwningPlayerPawn())
 	{
 		LunarAsylumCharacter = Cast<ALunarAsylumCharacter>(OwningPawn);
 	}
-
+	
 	if (LunarAsylumCharacter)
 	{
 		LunarAsylumCharacter->PlayerStatComponent->OnHPChanged.AddDynamic(this, &UCombatHUDWidget::UpdateHealth);
-
 		LunarAsylumCharacter->OnAimingChanged.AddDynamic(this, &UCombatHUDWidget::SetIsAiming);
-
 		LunarAsylumCharacter->OnAimingChanged.Broadcast(false);
-
+		
 		float CurrentHP = LunarAsylumCharacter->PlayerStatComponent->PlayerStats.CurrentHP;
 		float MaxHP = LunarAsylumCharacter->PlayerStatComponent->PlayerStats.MaxHP;
-
 		LunarAsylumCharacter->PlayerStatComponent->OnHPChanged.Broadcast(CurrentHP, MaxHP, 0.f);
+	}
+	
+	// ¿Œ∫•≈‰∏Æ Ω√Ω∫≈€
+	ATP_ThirdPersonCharacter* Character = Cast<ATP_ThirdPersonCharacter>(GetOwningPlayerPawn());
+	if (!Character) return;
+	
+	CachedInventoryComp = Character->InventoryComponent;
+	if (!CachedInventoryComp) return;
+	
+	CachedInventoryComp->OnInventoryUpdated.AddDynamic(this, &UCombatHUDWidget::UpdateInventorySlot);
+	UpdateInventorySlot();
+}
+
+void UCombatHUDWidget::UpdateInventorySlot()
+{
+	if (!InventorySlot_1 || !CachedInventoryComp) return;
+
+	if (CachedInventoryComp->Slots.Num() == 0) return;
+
+	FInventorySlot& InvSlot = CachedInventoryComp->Slots[0];
+	if (!InvSlot.bIsEmpty && InvSlot.ItemClass)
+	{
+		AItemBase* CDO = InvSlot.ItemClass->GetDefaultObject<AItemBase>();
+
+		if (CDO && CDO->ItemIcon)
+		{
+			InventorySlot_1->SetBrushFromTexture(CDO->ItemIcon, true);
+			InventorySlot_1->SetColorAndOpacity(FLinearColor::White);
+			FSlateBrush Brush = InventorySlot_1->GetBrush();
+			Brush.ImageSize = FVector2D(80.f, 100.f);
+			InventorySlot_1->SetBrush(Brush);
+
+			InventorySlot_1->SetVisibility(ESlateVisibility::Visible);
+			InventorySlot_1->SetRenderOpacity(1.0f);
+		}
+	}
+	else
+	{
+		InventorySlot_1->SetVisibility(ESlateVisibility::Hidden);
 	}
 }

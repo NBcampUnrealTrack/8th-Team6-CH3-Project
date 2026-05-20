@@ -2,6 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "../Inventory/InventoryComponent.h"
+#include "../TP_ThirdPerson/TP_ThirdPersonCharacter.h"
 #include "CombatHUDWidget.generated.h" // 이름 변경됨!
 
 
@@ -31,6 +33,27 @@ public:
 	UFUNCTION()
 	void SetIsAiming(bool bNewIsAiming);
 
+	UFUNCTION(BlueprintCallable)
+	void SetMainWeaponSlotVisibility(bool bShowRifle, bool bShowShotgun);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Icons")
+	UTexture2D* Icon_Rifle_Default;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Icons")
+	UTexture2D* Icon_Shotgun_Default;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon Icons")
+	UTexture2D* Icon_Pistol_Default;
+
+	UPROPERTY(meta = (BindWidget))
+	UImage* InventorySlot_1;
+
+	UPROPERTY()
+	UInventoryComponent* CachedInventoryComp;
+
+	UFUNCTION()
+	void UpdateInventorySlot();
+
 protected:
 	// 블루프린트 UI 변수 연결 (UMG의 이름과 똑같아야 함)
 	UPROPERTY(meta = (BindWidget))
@@ -52,8 +75,6 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	UImage* Pistol;
 
-	//UPROPERTY(meta = (BindWidget))
-	//UImage* WeaponSlot_4;
 
 	// --- 🔫 현재 무기 이름 텍스트 ---
 	UPROPERTY(meta = (BindWidget))

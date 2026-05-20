@@ -1,14 +1,9 @@
 #pragma once
-//
-// Weapon include
-#include "../Item/Weapons/SandboxWeaponBase.h"
-// Weapon include
 
-// Inventory include
+#include "../Item/Weapons/SandboxWeaponBase.h"
 #include "../Inventory/InventoryComponent.h"
 #include "Blueprint/UserWidget.h"
-// Inventory include
-//
+
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
@@ -22,6 +17,7 @@ class UInputAction;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnWeaponChanged);
 
 UCLASS(config=Game, Blueprintable)
 class ATP_ThirdPersonCharacter : public ACharacter
@@ -84,9 +80,6 @@ class ATP_ThirdPersonCharacter : public ACharacter
 
 	//
 	// Inventory Input
-	//UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	//UInputAction* InventoryAction;
-
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* UseItemAction;
 
@@ -146,14 +139,8 @@ protected:
 
 	//
 	// Inventory Functions
-	//UFUNCTION()
-	//void InInventoryToggle();
-
 	UFUNCTION(BlueprintCallable)
 	void OnUseItem();
-
-	//bool bCanToggleInventory = true;
-	//FTimerHandle InventoryToggleTimer;
 	// Inventory Functions
 	//
 protected:
@@ -180,6 +167,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite)
 	TObjectPtr<ASandboxWeaponBase> SubWeaponSlot;
 
+	UPROPERTY(BlueprintAssignable)
+	FOnWeaponChanged OnWeaponChanged;
+
 	UFUNCTION(BlueprintCallable)
 	void EquipWeapon(ASandboxWeaponBase* Weapon);
 	// Weapon
@@ -201,8 +191,17 @@ public:
 	//
 	// Selected Slot
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Inventory")
-	int32 SelectedSlotIndex = -1;
+	int32 SelectedSlotIndex = 0;
 	// Selected Slot
+	//
+
+	//
+	// HUD Update
+
+	UFUNCTION(BlueprintImplementableEvent, Category = "HUD")
+	void UpdateWeaponHUD();
+
+	// HUD Update
 	//
 };
 
