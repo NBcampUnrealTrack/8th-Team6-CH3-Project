@@ -1,4 +1,4 @@
-// WeaponBase.h
+﻿// WeaponBase.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,6 +7,9 @@
 #include "Components\SphereComponent.h"
 #include "WeaponBase.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAmmoChangedSignature, int32, CurrentAmmo, int32, MaxAmmo);
+
+
 UCLASS()
 class TEAM6_CH3_PROJECT_API AWeaponBase : public AItemBase
 {
@@ -14,6 +17,10 @@ class TEAM6_CH3_PROJECT_API AWeaponBase : public AItemBase
 
 public:
 	AWeaponBase();
+
+	UPROPERTY(BlueprintAssignable, Category = "Weapon|Delegates")
+	FOnAmmoChangedSignature OnAmmoChanged;
+	
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<USceneComponent> SceneRoot;

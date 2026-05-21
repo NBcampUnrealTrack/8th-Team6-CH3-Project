@@ -6,10 +6,16 @@
 
 void ASandboxWeaponBase::Fire()
 {
-	//if (CanAttack()) return;
-
 	SandboxFire();
 	ApplyRecoil();
+
+
+	
+	if (OnAmmoChanged.IsBound())
+	{
+		OnAmmoChanged.Broadcast(CurrentAmmo, MaxAmmo);
+	}
+
 
 	CanFire = false;
 	GetWorldTimerManager().SetTimer(
