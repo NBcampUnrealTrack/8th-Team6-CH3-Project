@@ -104,12 +104,14 @@ public:
 	ASandboxWeaponBase* CurrentWeapon;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Combat|Animation")
-	UAnimMontage* AM_HitReaction;
+	UAnimMontage* AMHitReactionUnarmed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Combat|Animation")
+	UAnimMontage* AMHitReactionArmed;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Combat|Animation")
 	UAnimMontage* AM_Death;
 
-	FTimerHandle AutoFireTimer;
+	//FTimerHandle AutoFireTimer;
 
 	//-----------------------------------------------------------------------------
 	// WEAPONS TRANSFORMS & IK SYSTEM
@@ -143,9 +145,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Interaction")
 	float InteractionDistance = 1000.f;
 
-	float InteractHoldTimeDuration = 0.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Interaction")
+	float InteractHoldTimeDuration = 0.5f;
 
 	float InteractionProgressPercent = 0.f;
+
+	float InteractionCurrentTime = 0.f;
 
 	//-----------------------------------------------------------------------------
 	// DELEGATE INSTANCES
@@ -173,7 +178,6 @@ public:
 	//-----------------------------------------------------------------------------
 	void SetActionState(EActionState NewState);
 	void SetEquipState(EEquipState NewState);
-	//void EquipWeapon(ASandboxWeaponBase* Weapon);
 
 	UFUNCTION(BlueprintCallable, Category = "Player|Combat")
 	void ANAttachWeapon();
@@ -219,8 +223,9 @@ protected:
 	void AimSetting();
 	void UpdateAimZoom(float DeltaTime);
 
-	UFUNCTION(BlueprintCallable, Category = "Player|Input|Actions")
-	void OnFire();
+	//UFUNCTION(BlueprintCallable, Category = "Player|Input|Actions")
+	//void OnFire();
+
 
 	UFUNCTION(BlueprintCallable, Category = "Player|Input|Actions")
 	void StartFire();
@@ -244,9 +249,7 @@ protected:
 
 	void OnInteractStarted();
 
-	void OnInteractOngoing(const FInputActionInstance& Instance);
-
-	void OnInteractTriggered();
+	void OnInteractTriggered(const FInputActionInstance& Instance);
 
 	void OnInteractCanceled();
 

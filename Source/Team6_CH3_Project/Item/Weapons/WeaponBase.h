@@ -7,6 +7,8 @@
 #include "Components\SphereComponent.h"
 #include "WeaponBase.generated.h"
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAmmoChangedSignature, int32, CurrentAmmo, int32, MaxAmmo);
+
 UCLASS()
 class TEAM6_CH3_PROJECT_API AWeaponBase : public AItemBase
 {
@@ -14,6 +16,9 @@ class TEAM6_CH3_PROJECT_API AWeaponBase : public AItemBase
 
 public:
 	AWeaponBase();
+
+	UPROPERTY(BlueprintAssignable, Category = "Weapon|Delegates")
+	FOnAmmoChangedSignature OnAmmoChanged;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
 	TObjectPtr<USceneComponent> SceneRoot;
@@ -31,7 +36,7 @@ public:
 	FCharacterAnimMontages CharacterAnimMontages;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponType")
-	EWeaponType WeaponType = EWeaponType::Rifle;
+	EWeaponType WeaponType;
 
 	UPROPERTY(EditAnywhere)
 	TSubclassOf<UCameraShakeBase> CameraShakeClass;
@@ -43,6 +48,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
 	class UNiagaraSystem* MuzzleEffect;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
+	class UNiagaraSystem* ImpactEffect;
 
 	UFUNCTION(BlueprintCallable)
 	virtual void Fire();
@@ -56,9 +64,6 @@ public:
 
 	bool GetCanFire() const { return CanFire; }
 
-
-	virtual void Interact(ACharacter* Character) override;
-	virtual void Use(ACharacter* Character) override;
 protected:
 	virtual void BeginPlay() override;
 
@@ -82,10 +87,4 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite)
 	bool CanFire;
-
-	UPROPERTY(BlueprintReadWrite)
-	FTimerHandle TimerFireDelay;
-
-	UFUNCTION()
-	void HandleFireDelay();
 };

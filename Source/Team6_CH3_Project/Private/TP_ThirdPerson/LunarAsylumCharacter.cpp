@@ -7,7 +7,6 @@
 #include "../Item/Weapons/SandboxWeaponBase.h"
 #include "Camera/CameraComponent.h"
 #include "EnhancedInputComponent.h"
-
 #include "InputAction.h"
 #include "Components\SpotLightComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -65,18 +64,6 @@ void ALunarAsylumCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (InputConfigData && InputConfigData->InteractAction)
-	{
-		for (const UInputTrigger* Trigger : InputConfigData->InteractAction->Triggers)
-		{
-			if (const UInputTriggerHold* HoldTrigger = Cast<UInputTriggerHold>(Trigger))
-			{
-				InteractHoldTimeDuration = HoldTrigger->HoldTimeThreshold;
-				break;
-			}
-		}
-	}
-
 	GetCharacterMovement()->MaxWalkSpeed = MoveSettings.WalkSpeed;
 
 	Torch->SetVisibility(false);
@@ -131,7 +118,6 @@ void ALunarAsylumCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 			EnhancedInputComponent->BindAction(InputConfigData->TorchAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::ToggleTorch);
 
 			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::OnInteractStarted);
-			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Ongoing, this, &ALunarAsylumCharacter::OnInteractOngoing);
 			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Triggered, this, &ALunarAsylumCharacter::OnInteractTriggered);
 			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Completed, this, &ALunarAsylumCharacter::OnInteractCanceled);
 			EnhancedInputComponent->BindAction(InputConfigData->InteractAction, ETriggerEvent::Canceled, this, &ALunarAsylumCharacter::OnInteractCanceled);
@@ -217,46 +203,20 @@ void ALunarAsylumCharacter::StopAim()
 	OnAimingChanged.Broadcast(bIsAiming);
 }
 
-void ALunarAsylumCharacter::OnFire()
-{
-	if (CurrentWeapon && CurrentWeapon->CanAttack() && CurrentEquipState != EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
-	{
-		CurrentWeapon->Fire();
-
-		PlayAnimMontage(CurrentWeapon->CharacterAnimMontages.Fire);
-
-		if (APlayerController* PC = Cast<APlayerController>(GetController()))
-		{
-			if (APlayerCameraManager* CamManager = PC->PlayerCameraManager)
-			{
-				CamManager->StartCameraShake(CurrentWeapon->CameraShakeClass, 1.0f);
-			}
-		}
-
-		if (CurrentWeapon->MuzzleEffect)
-		{
-			UNiagaraFunctionLibrary::SpawnSystemAttached(CurrentWeapon->MuzzleEffect, CurrentWeapon->Mesh, FName(TEXT("Socket_Muzzle")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
-		}
-	}
-}
-
 void ALunarAsylumCharacter::StartFire()
 {
-	if (!CurrentWeapon || CurrentEquipState == EEquipState::Unarmed)
+	if (CurrentWeapon && CurrentEquipState != EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
 	{
-		return;
-	}
-
-	if (CurrentActionState == EActionState::Idle)
-	{
-		GetWorldTimerManager().SetTimer(AutoFireTimer, this, &ALunarAsylumCharacter::OnFire, CurrentWeapon->GetRoF(), true);
-		OnFire();
+		CurrentWeapon->StartFire();
 	}
 }
 
 void ALunarAsylumCharacter::StopFire()
 {
-	GetWorldTimerManager().ClearTimer(AutoFireTimer);
+	if (CurrentWeapon)
+	{
+		CurrentWeapon->StopFire();
+	}
 }
 
 void ALunarAsylumCharacter::StartSprint()
@@ -666,16 +626,15 @@ void ALunarAsylumCharacter::DropWeapon(EEquipState EquipState)
 
 void ALunarAsylumCharacter::HitReaction()
 {
-	//if (CurrentActionState == EActionState::Dead)
-	//{
-	//	return;
-	//}
-	//StopAnimMontage();
-
-	if (AM_HitReaction)
+	if (CurrentEquipState == EEquipState::Unarmed)
 	{
-		PlayAnimMontage(AM_HitReaction);
+		PlayAnimMontage(AMHitReactionUnarmed);
 	}
+	else
+	{
+		PlayAnimMontage(AMHitReactionArmed);
+	}
+
 }
 
 void ALunarAsylumCharacter::OnDeath()
@@ -697,30 +656,32 @@ void ALunarAsylumCharacter::OnInteractStarted()
 {
 	if (TargetItem)
 	{
+		InteractionCurrentTime = 0.f;
 		InteractionProgressPercent = 0.f;
 		OnInteractionProgressChanged.Broadcast(InteractionProgressPercent);
 	}
 }
 
-void ALunarAsylumCharacter::OnInteractOngoing(const FInputActionInstance& Instance)
+void ALunarAsylumCharacter::OnInteractTriggered(const FInputActionInstance& Instance)
 {
 	if (!TargetItem)
 	{
+		InteractionCurrentTime = 0.f;
+		InteractionProgressPercent = 0.f;
+		OnInteractionProgressChanged.Broadcast(0.f);
 		return;
 	}
 
-	float ElapsedTime = Instance.GetElapsedTime();
+	InteractionCurrentTime += GetWorld()->GetDeltaSeconds();
 
-	InteractionProgressPercent = FMath::Clamp(ElapsedTime / InteractHoldTimeDuration, 0.f, 1.f);
+	InteractionProgressPercent = FMath::Clamp(InteractionCurrentTime / InteractHoldTimeDuration, 0.f, 1.f);
+
 	OnInteractionProgressChanged.Broadcast(InteractionProgressPercent);
-	UE_LOG(LogTemp, Log, TEXT("먹기 : %f"), InteractionProgressPercent);
-}
 
-void ALunarAsylumCharacter::OnInteractTriggered()
-{
-	if (TargetItem)
+	if (InteractionProgressPercent >= 1.f)
 	{
 		Interaction();
+		InteractionCurrentTime = 0.f;
 		InteractionProgressPercent = 0.f;
 		OnInteractionProgressChanged.Broadcast(InteractionProgressPercent);
 	}
@@ -729,6 +690,7 @@ void ALunarAsylumCharacter::OnInteractTriggered()
 void ALunarAsylumCharacter::OnInteractCanceled()
 {
 	InteractionProgressPercent = 0.f;
+	InteractionCurrentTime = 0.f;
 	OnInteractionProgressChanged.Broadcast(InteractionProgressPercent);
 }
 
