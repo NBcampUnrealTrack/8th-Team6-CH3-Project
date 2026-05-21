@@ -1,71 +1,76 @@
-// SandboxWeaponBase
 #include "SandboxWeaponBase.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/ArrowComponent.h"
+#include "TP_ThirdPerson/LunarAsylumCharacter.h"
+#include "NiagaraFunctionLibrary.h"
 #include "DrawDebugHelpers.h"
 
 void ASandboxWeaponBase::Fire()
 {
-	SandboxFire();
-	ApplyRecoil();
-
-
-	
-	if (OnAmmoChanged.IsBound())
+	if (!CanFire)
 	{
-		OnAmmoChanged.Broadcast(CurrentAmmo, MaxAmmo);
+		return;
 	}
 
+	if (CurrentAmmo < AmmoPerFire)
+	{
+		PlaySound(EmptySound);
+		StopFire(); 
+		return;
+	}
 
 	CanFire = false;
-	GetWorldTimerManager().SetTimer(
+	GetWorldTimerManager().SetTimer
+	(
 		TimerFireDelay,
 		this,
 		&ASandboxWeaponBase::HandleFireDelay,
 		RoF,
 		false
 	);
+
+	Super::Fire();
+	SandboxFire();
+	ApplyRecoil();
+
+	if (OnAmmoChanged.IsBound())
+	{
+		OnAmmoChanged.Broadcast(CurrentAmmo, MaxAmmo);
+	}
+
+	if (ALunarAsylumCharacter* OwnerChar = Cast<ALunarAsylumCharacter>(GetOwner()))
+	{
+		OwnerChar->PlayAnimMontage(CharacterAnimMontages.Fire);
+
+		if (APlayerController* PC = Cast<APlayerController>(OwnerChar->GetController()))
+		{
+			if (PC->PlayerCameraManager)
+			{
+				PC->PlayerCameraManager->StartCameraShake(CameraShakeClass, 1.0f);
+			}
+		}
+	}
+
+	if (MuzzleEffect)
+	{
+		UNiagaraFunctionLibrary::SpawnSystemAttached(MuzzleEffect, Mesh, FName(TEXT("Socket_Muzzle")), FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true);
+	}
 }
 
-//void ASandboxWeaponBase::Reload()
-//{
-//	if (bIsReloading) return;
-//	if (CurrentAmmo == MaxAmmo) return;
-//	
-//	PlaySound(ReloadStartSound);
-//
-//	bIsReloading = true;
-//	CanFire = false;
-//
-//	float SoundDuration = ReloadStartSound ? ReloadStartSound->GetDuration() : ReloadTime;
-//
-//	GetWorldTimerManager().SetTimer(
-//		TimerReloadDelay,
-//		this,
-//		&ASandboxWeaponBase::FinishReload,
-//		SoundDuration,
-//		false
-//	);
-//}
+void ASandboxWeaponBase::StartFire()
+{
+	bIsTryingToFire = true;
 
-//void ASandboxWeaponBase::FinishReload()
-//{
-//	CurrentAmmo = MaxAmmo;
-//	bIsReloading = false;
-//	CanFire = true;
-//
-//	PlaySound(ReloadEndSound);
-//}
+	if (CanFire)
+	{
+		Fire();
+	}
+}
 
-//bool ASandboxWeaponBase::CheckAmmo()
-//{
-//	if (CurrentAmmo < AmmoPerFire)
-//	{
-//		//PlaySound(EmptySound);
-//		return false;
-//	}
-//	return true;
-//}
+void ASandboxWeaponBase::StopFire()
+{
+	bIsTryingToFire = false;
+}
 
 bool ASandboxWeaponBase::CanAttack()
 {
@@ -94,7 +99,8 @@ void ASandboxWeaponBase::LinetraceOneShot(FVector Direction)
 	FHitResult HitResult;
 	FCollisionQueryParams Params;
 	Params.AddIgnoredActor(this);
-	bool bHit = GetWorld()->LineTraceSingleByChannel(
+	bool bHit = GetWorld()->LineTraceSingleByChannel
+	(
 		HitResult,
 		ViewPointLocation,
 		End,
@@ -102,41 +108,46 @@ void ASandboxWeaponBase::LinetraceOneShot(FVector Direction)
 		Params
 	);
 
-	// 판정용 트레이스 : 디버그 출력
-	DrawDebugLine(
-		GetWorld(),
-		ViewPointLocation,
-		End,
-		FColor::Red,
-		false,
-		5.f,
-		0,
-		2.0f
-	);
-
-	FVector MuzzleLocation = FirePoint->GetComponentLocation();
-	FVector VisualTraceEnd;
-
-	if (bHit) 
+	if (showDebug)
 	{
-		VisualTraceEnd = HitResult.ImpactPoint; 
-	}
-	else 
-	{
-		VisualTraceEnd = HitResult.TraceEnd; 
-	}
+		// 판정용 트레이스 : 디버그 출력
+		DrawDebugLine(
+			GetWorld(),
+			ViewPointLocation,
+			End,
+			FColor::Red,
+			false,
+			5.f,
+			0,
+			2.0f
+		);
 
-	// 연출용 트레이스 : 디버그 출력
-	DrawDebugLine(
-		GetWorld(),
-		MuzzleLocation,
-		VisualTraceEnd,
-		FColor::Blue,
-		false,
-		5.f,
-		0,
-		2.0f
-	);
+
+		FVector MuzzleLocation = FirePoint->GetComponentLocation();
+		FVector VisualTraceEnd;
+
+		if (bHit)
+		{
+			VisualTraceEnd = HitResult.ImpactPoint;
+		}
+		else
+		{
+			VisualTraceEnd = HitResult.TraceEnd;
+		}
+
+		// 연출용 트레이스 : 디버그 출력
+		DrawDebugLine
+		(
+			GetWorld(),
+			MuzzleLocation,
+			VisualTraceEnd,
+			FColor::Blue,
+			false,
+			5.f,
+			0,
+			2.0f
+		);
+	}
 
 	// 라인트레이스에 히트시 태그로 대미지 처리
 	if (HitResult.GetActor())
@@ -147,6 +158,11 @@ void ASandboxWeaponBase::LinetraceOneShot(FVector Direction)
 		{
 			UGameplayStatics::ApplyDamage(HitActor, DamagePerHit, nullptr, this, UDamageType::StaticClass());
 			UE_LOG(LogTemp, Log, TEXT("%s : %f 피해"), *HitResult.GetActor()->GetActorLabel(), DamagePerHit);
+		}
+
+		if (ImpactEffect)
+		{
+			UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), ImpactEffect, HitResult.ImpactPoint, HitResult.ImpactNormal.Rotation());
 		}
 
 	}
@@ -174,7 +190,8 @@ void ASandboxWeaponBase::LinetraceSpread(FVector Direction, int32 PellectCount, 
 		FCollisionQueryParams Params;
 		Params.AddIgnoredActor(this);
 
-		bool bHit = GetWorld()->LineTraceSingleByChannel(
+		bool bHit = GetWorld()->LineTraceSingleByChannel
+		(
 			HitResult,
 			ViewPointLocation,
 			End,
@@ -183,41 +200,46 @@ void ASandboxWeaponBase::LinetraceSpread(FVector Direction, int32 PellectCount, 
 		);
 
 
-		// 판정용 트레이스 : 디버그 출력
-		DrawDebugLine(
-			GetWorld(),
-			ViewPointLocation,
-			End,
-			FColor::Red,
-			false,
-			5.f,
-			0,
-			2.0f
-		);
-
-		FVector MuzzleLocation = FirePoint->GetComponentLocation();
-		FVector VisualTraceEnd;
-
-		if (bHit)
+		if (showDebug)
 		{
-			VisualTraceEnd = HitResult.ImpactPoint;
-		}
-		else
-		{
-			VisualTraceEnd = HitResult.TraceEnd;
-		}
+			// 판정용 트레이스 : 디버그 출력
+			DrawDebugLine
+			(
+				GetWorld(),
+				ViewPointLocation,
+				End,
+				FColor::Red,
+				false,
+				5.f,
+				0,
+				2.0f
+			);
 
-		// 연출용 트레이스 : 디버그 출력
-		DrawDebugLine(
-			GetWorld(),
-			MuzzleLocation,
-			VisualTraceEnd,
-			FColor::Blue,
-			false,
-			5.f,
-			0,
-			2.0f
-		);
+			FVector MuzzleLocation = FirePoint->GetComponentLocation();
+			FVector VisualTraceEnd;
+
+			if (bHit)
+			{
+				VisualTraceEnd = HitResult.ImpactPoint;
+			}
+			else
+			{
+				VisualTraceEnd = HitResult.TraceEnd;
+			}
+
+			// 연출용 트레이스 : 디버그 출력
+			DrawDebugLine
+			(
+				GetWorld(),
+				MuzzleLocation,
+				VisualTraceEnd,
+				FColor::Blue,
+				false,
+				5.f,
+				0,
+				2.0f
+			);
+		}
 
 		if (HitResult.GetActor())
 		{
@@ -229,21 +251,26 @@ void ASandboxWeaponBase::LinetraceSpread(FVector Direction, int32 PellectCount, 
 				UE_LOG(LogTemp, Log, TEXT("%s : %f 피해"), *HitResult.GetActor()->GetActorLabel(), DamagePerHit);
 			}
 
+			if (ImpactEffect)
+			{
+				UNiagaraFunctionLibrary::SpawnSystemAtLocation(GetWorld(), ImpactEffect, HitResult.ImpactPoint, HitResult.ImpactNormal.Rotation());
+			}
 		}
 	}
 }
 
-//void ASandboxWeaponBase::PlaySound(USoundBase* Sound)
-//{
-//	if (Sound)
-//	{
-//		UGameplayStatics::PlaySoundAtLocation(
-//			this,
-//			Sound,
-//			GetActorLocation()
-//		);
-//	}
-//}
+void ASandboxWeaponBase::PlaySound(USoundBase* Sound)
+{
+	if (Sound)
+	{
+		UGameplayStatics::PlaySoundAtLocation
+		(
+			this,
+			Sound,
+			GetActorLocation()
+		);
+	}
+}
 
 void ASandboxWeaponBase::ApplyRecoil()
 {
@@ -270,3 +297,12 @@ void ASandboxWeaponBase::UpdateAmmo()
 }
 
 
+void ASandboxWeaponBase::HandleFireDelay()
+{
+	CanFire = true;
+
+	if (bIsTryingToFire)
+	{
+		Fire();
+	}
+}

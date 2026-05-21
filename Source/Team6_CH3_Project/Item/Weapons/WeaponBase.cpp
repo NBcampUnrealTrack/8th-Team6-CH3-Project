@@ -25,16 +25,6 @@ AWeaponBase::AWeaponBase()
 
 	CanFire = true;
 	RoF = 0.4f;
-	/*MaxAmmo = 30;
-	CurrentAmmo = 30;
-	AmmoPerFire = 1;*/
-}
-
-void AWeaponBase::BeginPlay()
-{
-	Super::BeginPlay();
-
-	CurrentAmmo = MaxAmmo;
 }
 
 void AWeaponBase::Fire()
@@ -42,62 +32,9 @@ void AWeaponBase::Fire()
 
 }
 
-void AWeaponBase::HandleFireDelay()
+void AWeaponBase::BeginPlay()
 {
-	CanFire = true;
-}
+	Super::BeginPlay();
 
-void AWeaponBase::Interact(ACharacter* Character)
-{
-	if (Character)
-	{
-		//ATP_ThirdPersonCharacter* Player = Cast<ATP_ThirdPersonCharacter>(Character);
-		//if (Player)
-		//{
-		//	ASandboxWeaponBase* SandboxWeapon = Cast<ASandboxWeaponBase>(this);
-		//	if (SandboxWeapon)
-		//	{
-		//		Player->EquipWeapon(SandboxWeapon);
-		//		SetActorEnableCollision(false);
-		//	}
-		//}
-
-
-		ALunarAsylumCharacter* Player = Cast<ALunarAsylumCharacter>(Character);
-		if (Player)
-		{
-			ASandboxWeaponBase* SandboxWeapon = Cast<ASandboxWeaponBase>(this);
-			if (SandboxWeapon)
-			{
-				//Player->EquipWeapon(SandboxWeapon);
-				//SetActorEnableCollision(false);
-			}
-		}
-	}
-}
-
-void AWeaponBase::Use(ACharacter* Character)
-{
-	if (!Character) return;
-
-	ATP_ThirdPersonCharacter* Player = Cast<ATP_ThirdPersonCharacter>(Character);
-	if (!Player) return;
-
-	FActorSpawnParameters SpawnParams;
-	SpawnParams.Owner = Character;
-	AWeaponBase* Weapon = Character->GetWorld()->SpawnActor<AWeaponBase>(
-		GetClass(),
-		Character->GetActorLocation(),
-		Character->GetActorRotation(),
-		SpawnParams);
-
-	if (Weapon)
-	{
-		//Weapon->SetActorEnableCollision(false);
-		ASandboxWeaponBase* SandboxWeapon = Cast<ASandboxWeaponBase>(Weapon);
-		if (SandboxWeapon)
-		{
-			Player->EquipWeapon(SandboxWeapon);
-		}
-	}
+	CurrentAmmo = MaxAmmo;
 }
