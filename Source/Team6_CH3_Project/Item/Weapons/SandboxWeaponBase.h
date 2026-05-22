@@ -14,46 +14,15 @@ class TEAM6_CH3_PROJECT_API ASandboxWeaponBase : public AWeaponBase
 public:
 	virtual void Fire() override;
 
+	void StartFire();
+
+	void StopFire();
+
 	UFUNCTION(BlueprintImplementableEvent)
 	void SandboxFire();
 
-	//UFUNCTION(BlueprintCallable)
-	//void Reload();
-
-	// 사운드 사용안함, 애니메이션 몽타주에서 사용
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//USoundBase* ReloadStartSound;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//USoundBase* ReloadEndSound;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//USoundBase* EmptySound;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//float RecoilAmount = 1.0f;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//float ReloadTime = 2.0f;
-
-
-	////////  추가 ///////////////
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Montage")
-	//FCharacterAnimMontages CharacterAnimMontages;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "WeaponType")
-	//EWeaponType WeaponType;
-
-	//UPROPERTY(EditAnywhere)
-	//TSubclassOf<UCameraShakeBase> CameraShakeClass;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//FVector EquipOffset;
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	//FVector HolsterOffset;
-
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Effect")
-	//class UNiagaraSystem* MuzzleEffect;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	USoundBase* EmptySound;
 
 	UFUNCTION(BlueprintCallable)
 	bool CanAttack();
@@ -67,21 +36,14 @@ protected:
 	UFUNCTION(BlueprintCallable)
 	void LinetraceSpread(FVector Direction, int32 PellectCount, float SpreadAngle);
 
-	//UFUNCTION(BlueprintCallable)
-	//void PlaySound(USoundBase* Sound);
+	UFUNCTION(BlueprintCallable)
+	void PlaySound(USoundBase* Sound);
 
 	UFUNCTION(BlueprintCallable)
 	void UpdateAmmo();
 
 	UFUNCTION(BlueprintCallable)
 	void ApplyRecoil();
-
-	//UFUNCTION()
-	//void FinishReload();
-
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	bool bIsReloading = false;
 
 	FTimerHandle TimerReloadDelay;
 
@@ -102,4 +64,15 @@ protected:
 	float YawRecoilMin = -0.1f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Weapon")
 	float YawRecoilMax = 0.1f;
+
+	UPROPERTY(EditAnywhere,BlueprintReadWrite)
+	bool showDebug = false;
+
+	bool bIsTryingToFire;
+
+	UPROPERTY(BlueprintReadWrite)
+	FTimerHandle TimerFireDelay;
+
+	UFUNCTION()
+	void HandleFireDelay();
 };
