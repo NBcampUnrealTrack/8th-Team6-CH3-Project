@@ -109,6 +109,7 @@ void ALunarAsylumCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 			EnhancedInputComponent->BindAction(InputConfigData->SprintAction, ETriggerEvent::Completed, this, &ALunarAsylumCharacter::StopSprint);
 
 			EnhancedInputComponent->BindAction(InputConfigData->FireAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::StartFire);
+			EnhancedInputComponent->BindAction(InputConfigData->FireAction, ETriggerEvent::Triggered, this, &ALunarAsylumCharacter::StartFire);
 			EnhancedInputComponent->BindAction(InputConfigData->FireAction, ETriggerEvent::Completed, this, &ALunarAsylumCharacter::StopFire);
 
 			EnhancedInputComponent->BindAction(InputConfigData->PrimaryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::PrimaryEquipToggle);
@@ -205,14 +206,17 @@ void ALunarAsylumCharacter::StopAim()
 
 void ALunarAsylumCharacter::StartFire()
 {
-	if (CurrentWeapon && CurrentEquipState != EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
+	if (!bWantsToFire && CurrentWeapon && CurrentEquipState != EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
 	{
+		bWantsToFire = true;
 		CurrentWeapon->StartFire();
 	}
 }
 
 void ALunarAsylumCharacter::StopFire()
 {
+	bWantsToFire = false;
+
 	if (CurrentWeapon)
 	{
 		CurrentWeapon->StopFire();
@@ -451,7 +455,12 @@ void ALunarAsylumCharacter::UpdatePlayerStateDebugMessage()
 	FString ActionStateString = UEnum::GetValueAsString(CurrentActionState);
 	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, ActionStateString);
 	FString EquipStateString = UEnum::GetValueAsString(CurrentEquipState);
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Yellow, EquipStateString);
+	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, EquipStateString);
+
+	FString SprintString = bIsSprint ? FString::Printf(TEXT("Sprint : True")) : FString::Printf(TEXT("Sprint : False"));
+	FString AimingString = bIsAiming ? FString::Printf(TEXT("Aiming : True")) : FString::Printf(TEXT("Aiming : False"));
+	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, SprintString);
+	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, AimingString);
 }
 
 void ALunarAsylumCharacter::UpdateInteractionCheck()
@@ -495,7 +504,7 @@ void ALunarAsylumCharacter::UpdateInteractionCheck()
 		);
 
 		// 디버그 출력
-		DrawDebugSphere(GetWorld(), HitResult.Location, 20.f, 12, bHit ? FColor::Green : FColor::Red, false, 0.1f);
+		//DrawDebugSphere(GetWorld(), HitResult.Location, 20.f, 12, bHit ? FColor::Green : FColor::Red, false, 0.1f);
 
 		if (bHit)
 		{
@@ -626,6 +635,11 @@ void ALunarAsylumCharacter::DropWeapon(EEquipState EquipState)
 
 void ALunarAsylumCharacter::HitReaction()
 {
+	if (CurrentWeapon && bWantsToFire)
+	{
+		CurrentWeapon->StopFire();
+	}
+
 	if (CurrentEquipState == EEquipState::Unarmed)
 	{
 		PlayAnimMontage(AMHitReactionUnarmed);
