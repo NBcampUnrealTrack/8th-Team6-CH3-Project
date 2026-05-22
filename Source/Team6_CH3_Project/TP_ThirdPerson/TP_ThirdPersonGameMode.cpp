@@ -12,4 +12,6 @@ ATP_ThirdPersonGameMode::ATP_ThirdPersonGameMode()
 	{
 		DefaultPawnClass = PlayerPawnBPClass.Class;
 	}
+
+	CurrentKillCount = 0;
 }

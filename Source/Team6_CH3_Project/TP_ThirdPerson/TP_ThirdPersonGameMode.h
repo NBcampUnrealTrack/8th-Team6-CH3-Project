@@ -13,6 +13,9 @@ class ATP_ThirdPersonGameMode : public AGameModeBase
 
 public:
 	ATP_ThirdPersonGameMode();
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Stage Settings")
+	int32 CurrentKillCount;
 };
 
 
