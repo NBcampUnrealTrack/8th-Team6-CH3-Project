@@ -4,6 +4,8 @@
 #include "TP_ThirdPerson/LunarAsylumCharacter.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "../Item/ItemBase.h"
+
+#include "../Item/PotionItem.h"
 #include "../Item/Weapons/SandboxWeaponBase.h"
 #include "Camera/CameraComponent.h"
 #include "EnhancedInputComponent.h"
@@ -336,6 +338,20 @@ void ALunarAsylumCharacter::Interaction()
 			OnItemAcquired.Broadcast(TEXT("해당 무기 슬롯이 가득 찼습니다!"));
 		}
 	}
+	else
+	{
+		APotionItem* Potion = Cast<APotionItem>(TargetItem);
+		if (Potion)
+		{
+			int HealAmount = Potion->HealAmount;
+
+			PlayerStatComponent->HealHP(HealAmount);
+
+			FString HealMessage = FString::Printf(TEXT("%d 회복!"), HealAmount);
+			OnItemAcquired.Broadcast(HealMessage);
+			Potion->Destroy();
+		}
+	}
 }
 
 void ALunarAsylumCharacter::ANAttachWeapon()
@@ -451,16 +467,21 @@ void ALunarAsylumCharacter::OnEquipMontageEnd(UAnimMontage* Montage, bool bInter
 
 void ALunarAsylumCharacter::UpdatePlayerStateDebugMessage()
 {
-	// 캐릭터 상태 출력 확인용//
-	FString ActionStateString = UEnum::GetValueAsString(CurrentActionState);
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, ActionStateString);
-	FString EquipStateString = UEnum::GetValueAsString(CurrentEquipState);
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, EquipStateString);
+	if (!bShowDebugPlayerState) return;
 
-	FString SprintString = bIsSprint ? FString::Printf(TEXT("Sprint : True")) : FString::Printf(TEXT("Sprint : False"));
-	FString AimingString = bIsAiming ? FString::Printf(TEXT("Aiming : True")) : FString::Printf(TEXT("Aiming : False"));
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, SprintString);
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, AimingString);
+	FString ActionStateString = UEnum::GetValueAsString(CurrentActionState);
+	FString EquipStateString = UEnum::GetValueAsString(CurrentEquipState);
+
+	FString SprintString = bIsSprint ? TEXT("Sprint : True") : TEXT("Sprint : False");
+	FString AimingString = bIsAiming ? TEXT("Aiming : True") : TEXT("Aiming : False");
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(110, 0.f, FColor::Green, ActionStateString);
+		GEngine->AddOnScreenDebugMessage(111, 0.f, FColor::Green, EquipStateString);
+		GEngine->AddOnScreenDebugMessage(112, 0.f, FColor::Green, SprintString);
+		GEngine->AddOnScreenDebugMessage(113, 0.f, FColor::Green, AimingString);
+	}
 }
 
 void ALunarAsylumCharacter::UpdateInteractionCheck()

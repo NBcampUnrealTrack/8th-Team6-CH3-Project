@@ -91,6 +91,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|State")
 	EActionState CurrentActionState;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
+	bool bShowDebugPlayerState = false;
+
 	//-----------------------------------------------------------------------------
 	// WEAPONS & COMBAT
 	//-----------------------------------------------------------------------------
