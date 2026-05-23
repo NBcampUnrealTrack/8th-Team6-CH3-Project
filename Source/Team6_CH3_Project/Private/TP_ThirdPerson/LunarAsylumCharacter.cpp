@@ -4,6 +4,8 @@
 #include "TP_ThirdPerson/LunarAsylumCharacter.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "../Item/ItemBase.h"
+
+#include "../Item/PotionItem.h"
 #include "../Item/Weapons/SandboxWeaponBase.h"
 #include "Camera/CameraComponent.h"
 #include "EnhancedInputComponent.h"
@@ -109,6 +111,7 @@ void ALunarAsylumCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInp
 			EnhancedInputComponent->BindAction(InputConfigData->SprintAction, ETriggerEvent::Completed, this, &ALunarAsylumCharacter::StopSprint);
 
 			EnhancedInputComponent->BindAction(InputConfigData->FireAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::StartFire);
+			EnhancedInputComponent->BindAction(InputConfigData->FireAction, ETriggerEvent::Triggered, this, &ALunarAsylumCharacter::StartFire);
 			EnhancedInputComponent->BindAction(InputConfigData->FireAction, ETriggerEvent::Completed, this, &ALunarAsylumCharacter::StopFire);
 
 			EnhancedInputComponent->BindAction(InputConfigData->PrimaryAction, ETriggerEvent::Started, this, &ALunarAsylumCharacter::PrimaryEquipToggle);
@@ -205,14 +208,17 @@ void ALunarAsylumCharacter::StopAim()
 
 void ALunarAsylumCharacter::StartFire()
 {
-	if (CurrentWeapon && CurrentEquipState != EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
+	if (!bWantsToFire && CurrentWeapon && CurrentEquipState != EEquipState::Unarmed && CurrentActionState == EActionState::Idle)
 	{
+		bWantsToFire = true;
 		CurrentWeapon->StartFire();
 	}
 }
 
 void ALunarAsylumCharacter::StopFire()
 {
+	bWantsToFire = false;
+
 	if (CurrentWeapon)
 	{
 		CurrentWeapon->StopFire();
@@ -332,6 +338,20 @@ void ALunarAsylumCharacter::Interaction()
 			OnItemAcquired.Broadcast(TEXT("해당 무기 슬롯이 가득 찼습니다!"));
 		}
 	}
+	else
+	{
+		APotionItem* Potion = Cast<APotionItem>(TargetItem);
+		if (Potion)
+		{
+			int HealAmount = Potion->HealAmount;
+
+			PlayerStatComponent->HealHP(HealAmount);
+
+			FString HealMessage = FString::Printf(TEXT("%d 회복!"), HealAmount);
+			OnItemAcquired.Broadcast(HealMessage);
+			Potion->Destroy();
+		}
+	}
 }
 
 void ALunarAsylumCharacter::ANAttachWeapon()
@@ -447,11 +467,21 @@ void ALunarAsylumCharacter::OnEquipMontageEnd(UAnimMontage* Montage, bool bInter
 
 void ALunarAsylumCharacter::UpdatePlayerStateDebugMessage()
 {
-	// 캐릭터 상태 출력 확인용//
+	if (!bShowDebugPlayerState) return;
+
 	FString ActionStateString = UEnum::GetValueAsString(CurrentActionState);
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Green, ActionStateString);
 	FString EquipStateString = UEnum::GetValueAsString(CurrentEquipState);
-	GEngine->AddOnScreenDebugMessage(-1, 0.f, FColor::Yellow, EquipStateString);
+
+	FString SprintString = bIsSprint ? TEXT("Sprint : True") : TEXT("Sprint : False");
+	FString AimingString = bIsAiming ? TEXT("Aiming : True") : TEXT("Aiming : False");
+
+	if (GEngine)
+	{
+		GEngine->AddOnScreenDebugMessage(110, 0.f, FColor::Green, ActionStateString);
+		GEngine->AddOnScreenDebugMessage(111, 0.f, FColor::Green, EquipStateString);
+		GEngine->AddOnScreenDebugMessage(112, 0.f, FColor::Green, SprintString);
+		GEngine->AddOnScreenDebugMessage(113, 0.f, FColor::Green, AimingString);
+	}
 }
 
 void ALunarAsylumCharacter::UpdateInteractionCheck()
@@ -495,7 +525,7 @@ void ALunarAsylumCharacter::UpdateInteractionCheck()
 		);
 
 		// 디버그 출력
-		DrawDebugSphere(GetWorld(), HitResult.Location, 20.f, 12, bHit ? FColor::Green : FColor::Red, false, 0.1f);
+		//DrawDebugSphere(GetWorld(), HitResult.Location, 20.f, 12, bHit ? FColor::Green : FColor::Red, false, 0.1f);
 
 		if (bHit)
 		{
@@ -626,6 +656,11 @@ void ALunarAsylumCharacter::DropWeapon(EEquipState EquipState)
 
 void ALunarAsylumCharacter::HitReaction()
 {
+	if (CurrentWeapon && bWantsToFire)
+	{
+		CurrentWeapon->StopFire();
+	}
+
 	if (CurrentEquipState == EEquipState::Unarmed)
 	{
 		PlayAnimMontage(AMHitReactionUnarmed);

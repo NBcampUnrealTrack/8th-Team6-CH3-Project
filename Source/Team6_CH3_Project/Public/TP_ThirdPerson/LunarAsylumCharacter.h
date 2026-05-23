@@ -91,6 +91,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Player|State")
 	EActionState CurrentActionState;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Debug")
+	bool bShowDebugPlayerState = false;
+
 	//-----------------------------------------------------------------------------
 	// WEAPONS & COMBAT
 	//-----------------------------------------------------------------------------
@@ -111,7 +114,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player|Combat|Animation")
 	UAnimMontage* AM_Death;
 
-	//FTimerHandle AutoFireTimer;
+	bool bWantsToFire = false;
 
 	//-----------------------------------------------------------------------------
 	// WEAPONS TRANSFORMS & IK SYSTEM
@@ -129,8 +132,11 @@ public:
 	FTransform WeaponEffector;
 
 	bool bIsInterpWeaponTransform = false;
+
 	FTransform TargetWeaponTransform;
+
 	float TargetIKAlpha = 0.f;
+
 	bool bIsIKAlpha = false;
 
 	//-----------------------------------------------------------------------------
@@ -222,10 +228,6 @@ protected:
 
 	void AimSetting();
 	void UpdateAimZoom(float DeltaTime);
-
-	//UFUNCTION(BlueprintCallable, Category = "Player|Input|Actions")
-	//void OnFire();
-
 
 	UFUNCTION(BlueprintCallable, Category = "Player|Input|Actions")
 	void StartFire();
